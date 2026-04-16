@@ -21,28 +21,42 @@ jobs:
     env:
       BUILDOZER_WARN_ON_ROOT: "0"
       APP_ANDROID_ARCH: arm64-v8a
+      BUILD_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.build_mode || 'debug' }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Prepare artifact directories
+        run: mkdir -p ci_artifacts .buildozer_global
+
       - name: Build arm64-v8a APK
-        uses: ArtemSBulgakov/buildozer-action@v1
-        id: buildozer
         continue-on-error: true
-        with:
-          command: mkdir -p ci_artifacts; buildozer -v android ${{ github.event_name == 'workflow_dispatch' && inputs.build_mode || 'debug' }} 2>&1 | tee ci_artifacts/buildozer.log; exit ${PIPESTATUS[0]}
-          buildozer_version: stable
+        run: |
+          set +e
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE/.buildozer_global":/home/user/.buildozer \
+            -v "$GITHUB_WORKSPACE":/home/user/hostcwd \
+            -w /home/user/hostcwd \
+            -e BUILDOZER_WARN_ON_ROOT="$BUILDOZER_WARN_ON_ROOT" \
+            -e APP_ANDROID_ARCH="$APP_ANDROID_ARCH" \
+            ghcr.io/kivy/buildozer:latest \
+            buildozer -v android "$BUILD_MODE" 2>&1 | tee ci_artifacts/buildozer.log
+          status=${PIPESTATUS[0]}
+          printf '%s\n' "$status" > ci_artifacts/build_exit_code.txt
+          find . -maxdepth 6 -type f \( -name '*.apk' -o -name '*.aab' -o -name '*.log' \) | sort > ci_artifacts/workspace_files.txt
+          exit 0
 
       - name: Upload build outputs and logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ETGmusic-${{ github.event_name == 'workflow_dispatch' && inputs.build_mode || 'debug' }}-artifacts
+          name: ETGmusic-${{ env.BUILD_MODE }}-artifacts
           path: |
-            ci_artifacts/buildozer.log
+            ci_artifacts/**
             bin/*.apk
+            bin/*.aab
             .buildozer/**/*.log
             .buildozer/android/platform/build-*/dists/**/build.log
             .buildozer/android/platform/build-*/dists/**/stdout.txt
@@ -50,7 +64,14 @@ jobs:
           if-no-files-found: warn
 
       - name: Fail workflow if build failed
-        if: steps.buildozer.outcome != 'success'
         run: |
-          echo "Buildozer build failed. See uploaded artifacts for logs."
-          exit 1
+          if [ ! -f ci_artifacts/build_exit_code.txt ]; then
+            echo "Missing ci_artifacts/build_exit_code.txt"
+            exit 1
+          fi
+          status="$(cat ci_artifacts/build_exit_code.txt)"
+          echo "Build exit code: $status"
+          if [ "$status" != "0" ]; then
+            echo "Buildozer build failed. See uploaded artifacts for logs."
+            exit "$status"
+          fi

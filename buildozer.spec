@@ -6,7 +6,7 @@ source.dir = .
 source.include_exts = py,png,jpg,jpeg,kv,json,txt
 version = 0.1.0
 
-requirements = python3,kivy==2.3.0,kivymd==1.2.0,telethon==1.36.0,tgcrypto==1.2.5,pillow==10.4.0,pyjnius==1.6.1
+requirements = python3,kivy==2.3.0,kivymd==1.2.0,telethon==1.36.0,pillow==10.4.0,pyjnius,openssl,sqlite3
 
 orientation = portrait
 fullscreen = 0
