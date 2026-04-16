@@ -20,46 +20,22 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BUILDOZER_WARN_ON_ROOT: "0"
+      APP_ANDROID_ARCH: arm64-v8a
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Resolve build mode
-        run: echo "BUILD_MODE=${{ github.event_name == 'workflow_dispatch' && inputs.build_mode || 'debug' }}" >> "$GITHUB_ENV"
-
-      - name: Cache Buildozer state
-        uses: actions/cache@v4
-        with:
-          path: |
-            .buildozer
-            ~/.buildozer
-            ~/.cache/pip
-          key: ${{ runner.os }}-buildozer-${{ env.BUILD_MODE }}-${{ hashFiles('buildozer.spec', 'requirements.txt', 'main.py') }}
-          restore-keys: |
-            ${{ runner.os }}-buildozer-${{ env.BUILD_MODE }}-
-            ${{ runner.os }}-buildozer-
-
       - name: Build arm64-v8a APK
         uses: ArtemSBulgakov/buildozer-action@v1
+        id: buildozer
         with:
-          command: buildozer -v android ${{ env.BUILD_MODE }}
+          command: ${{ github.event_name == 'workflow_dispatch' && format('buildozer android {0}', inputs.build_mode) || 'buildozer android debug' }}
           buildozer_version: stable
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ETGmusic-${{ env.BUILD_MODE }}-arm64-v8a
-          path: bin/*.apk
+          name: ETGmusic-${{ github.event_name == 'workflow_dispatch' && inputs.build_mode || 'debug' }}-arm64-v8a
+          path: ${{ steps.buildozer.outputs.filename }}
           if-no-files-found: error
