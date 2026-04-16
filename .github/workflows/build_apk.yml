@@ -42,7 +42,7 @@ jobs:
             -e BUILDOZER_WARN_ON_ROOT="$BUILDOZER_WARN_ON_ROOT" \
             -e APP_ANDROID_ARCH="$APP_ANDROID_ARCH" \
             ghcr.io/kivy/buildozer:latest \
-            buildozer -v android "$BUILD_MODE" 2>&1 | tee ci_artifacts/buildozer.log
+            -v android "$BUILD_MODE" 2>&1 | tee ci_artifacts/buildozer.log
           status=${PIPESTATUS[0]}
           printf '%s\n' "$status" > ci_artifacts/build_exit_code.txt
           find . -maxdepth 6 -type f \( -name '*.apk' -o -name '*.aab' -o -name '*.log' \) | sort > ci_artifacts/workspace_files.txt
