@@ -21,6 +21,7 @@ jobs:
     env:
       BUILDOZER_WARN_ON_ROOT: "0"
       APP_ANDROID_ARCH: arm64-v8a
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
     steps:
       - name: Checkout
@@ -29,13 +30,27 @@ jobs:
       - name: Build arm64-v8a APK
         uses: ArtemSBulgakov/buildozer-action@v1
         id: buildozer
+        continue-on-error: true
         with:
-          command: ${{ github.event_name == 'workflow_dispatch' && format('buildozer android {0}', inputs.build_mode) || 'buildozer android debug' }}
+          command: mkdir -p ci_artifacts; buildozer -v android ${{ github.event_name == 'workflow_dispatch' && inputs.build_mode || 'debug' }} 2>&1 | tee ci_artifacts/buildozer.log; exit ${PIPESTATUS[0]}
           buildozer_version: stable
 
-      - name: Upload APK artifacts
+      - name: Upload build outputs and logs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ETGmusic-${{ github.event_name == 'workflow_dispatch' && inputs.build_mode || 'debug' }}-arm64-v8a
-          path: ${{ steps.buildozer.outputs.filename }}
-          if-no-files-found: error
+          name: ETGmusic-${{ github.event_name == 'workflow_dispatch' && inputs.build_mode || 'debug' }}-artifacts
+          path: |
+            ci_artifacts/buildozer.log
+            bin/*.apk
+            .buildozer/**/*.log
+            .buildozer/android/platform/build-*/dists/**/build.log
+            .buildozer/android/platform/build-*/dists/**/stdout.txt
+            .buildozer/android/platform/build-*/dists/**/stderr.txt
+          if-no-files-found: warn
+
+      - name: Fail workflow if build failed
+        if: steps.buildozer.outcome != 'success'
+        run: |
+          echo "Buildozer build failed. See uploaded artifacts for logs."
+          exit 1
