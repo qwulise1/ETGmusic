@@ -4,6 +4,7 @@ import 'package:flutter/material.dart' show ListTile;
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
+import 'package:shadcn_flutter/shadcn_flutter_extension.dart';
 import 'package:etgmusic/collections/routes.gr.dart';
 import 'package:etgmusic/collections/spotube_icons.dart';
 import 'package:etgmusic/modules/settings/section_card_with_heading.dart';
