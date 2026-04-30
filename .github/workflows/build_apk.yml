@@ -15,6 +15,9 @@ on:
           - debug
           - release
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -75,3 +78,27 @@ jobs:
             echo "Buildozer build failed. See uploaded artifacts for logs."
             exit "$status"
           fi
+
+      - name: Publish latest artifacts branch
+        if: github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          out_dir="$(mktemp -d)"
+          cp bin/*.apk "$out_dir"/
+          cp ci_artifacts/buildozer.log "$out_dir"/
+          cp ci_artifacts/workspace_files.txt "$out_dir"/
+          cat > "$out_dir/README.txt" <<EOF
+          ETGmusic latest GitHub build
+          Commit: $GITHUB_SHA
+          Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          Install the APK from this branch. It is a CI debug-key signed test build.
+          EOF
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan latest-artifacts-publish
+          git rm -rf . >/dev/null 2>&1 || true
+          cp -R "$out_dir"/. .
+          git add .
+          git commit -m "Update ETGmusic artifacts for ${GITHUB_SHA::7}"
+          git push --force origin HEAD:latest-artifacts
