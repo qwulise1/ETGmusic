@@ -16,37 +16,37 @@ import 'package:local_notifier/local_notifier.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:metadata_god/metadata_god.dart';
 import 'package:smtc_windows/smtc_windows.dart';
-import 'package:spotube/collections/env.dart';
-import 'package:spotube/collections/http-override.dart';
-import 'package:spotube/collections/intents.dart';
-import 'package:spotube/collections/routes.dart';
-import 'package:spotube/hooks/configurators/use_close_behavior.dart';
-import 'package:spotube/hooks/configurators/use_deep_linking.dart';
-import 'package:spotube/hooks/configurators/use_disable_battery_optimizations.dart';
-import 'package:spotube/hooks/configurators/use_fix_window_stretching.dart';
-import 'package:spotube/hooks/configurators/use_get_storage_perms.dart';
-import 'package:spotube/hooks/configurators/use_has_touch.dart';
-import 'package:spotube/models/database/database.dart';
-import 'package:spotube/modules/settings/color_scheme_picker_dialog.dart';
-import 'package:spotube/provider/audio_player/audio_player_streams.dart';
-import 'package:spotube/provider/database/database.dart';
-import 'package:spotube/provider/glance/glance.dart';
-import 'package:spotube/provider/metadata_plugin/metadata_plugin_provider.dart';
-import 'package:spotube/provider/metadata_plugin/updater/update_checker.dart';
-import 'package:spotube/provider/server/bonsoir.dart';
-import 'package:spotube/provider/server/server.dart';
-import 'package:spotube/provider/tray_manager/tray_manager.dart';
-import 'package:spotube/l10n/l10n.dart';
-import 'package:spotube/provider/connect/clients.dart';
-import 'package:spotube/provider/user_preferences/user_preferences_provider.dart';
-import 'package:spotube/services/audio_player/audio_player.dart';
-import 'package:spotube/services/cli/cli.dart';
-import 'package:spotube/services/kv_store/encrypted_kv_store.dart';
-import 'package:spotube/services/kv_store/kv_store.dart';
-import 'package:spotube/services/logger/logger.dart';
-import 'package:spotube/services/wm_tools/wm_tools.dart';
-import 'package:spotube/utils/migrations/sandbox.dart';
-import 'package:spotube/utils/platform.dart';
+import 'package:etgmusic/collections/env.dart';
+import 'package:etgmusic/collections/http-override.dart';
+import 'package:etgmusic/collections/intents.dart';
+import 'package:etgmusic/collections/routes.dart';
+import 'package:etgmusic/hooks/configurators/use_close_behavior.dart';
+import 'package:etgmusic/hooks/configurators/use_deep_linking.dart';
+import 'package:etgmusic/hooks/configurators/use_disable_battery_optimizations.dart';
+import 'package:etgmusic/hooks/configurators/use_fix_window_stretching.dart';
+import 'package:etgmusic/hooks/configurators/use_get_storage_perms.dart';
+import 'package:etgmusic/hooks/configurators/use_has_touch.dart';
+import 'package:etgmusic/models/database/database.dart';
+import 'package:etgmusic/modules/settings/color_scheme_picker_dialog.dart';
+import 'package:etgmusic/provider/audio_player/audio_player_streams.dart';
+import 'package:etgmusic/provider/database/database.dart';
+import 'package:etgmusic/provider/glance/glance.dart';
+import 'package:etgmusic/provider/metadata_plugin/metadata_plugin_provider.dart';
+import 'package:etgmusic/provider/metadata_plugin/updater/update_checker.dart';
+import 'package:etgmusic/provider/server/bonsoir.dart';
+import 'package:etgmusic/provider/server/server.dart';
+import 'package:etgmusic/provider/tray_manager/tray_manager.dart';
+import 'package:etgmusic/l10n/l10n.dart';
+import 'package:etgmusic/provider/connect/clients.dart';
+import 'package:etgmusic/provider/user_preferences/user_preferences_provider.dart';
+import 'package:etgmusic/services/audio_player/audio_player.dart';
+import 'package:etgmusic/services/cli/cli.dart';
+import 'package:etgmusic/services/kv_store/encrypted_kv_store.dart';
+import 'package:etgmusic/services/kv_store/kv_store.dart';
+import 'package:etgmusic/services/logger/logger.dart';
+import 'package:etgmusic/services/wm_tools/wm_tools.dart';
+import 'package:etgmusic/utils/migrations/sandbox.dart';
+import 'package:etgmusic/utils/platform.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:timezone/data/latest.dart' as tz;
@@ -114,12 +114,12 @@ Future<void> main(List<String> rawArgs) async {
     final database = AppDatabase();
 
     if (kIsDesktop) {
-      await localNotifier.setup(appName: "Spotube");
+      await localNotifier.setup(appName: "ETGmusic");
       await WindowManagerTools.initialize();
     }
 
     if (kIsIOS) {
-      HomeWidget.setAppGroupId("group.spotube_home_player_widget");
+      HomeWidget.setAppGroupId("group.etgmusic_home_player_widget");
     }
 
     runApp(
@@ -130,14 +130,14 @@ Future<void> main(List<String> rawArgs) async {
         observers: const [
           AppLoggerProviderObserver(),
         ],
-        child: const Spotube(),
+        child: const ETGmusic(),
       ),
     );
   });
 }
 
-class Spotube extends HookConsumerWidget {
-  const Spotube({super.key});
+class ETGmusic extends HookConsumerWidget {
+  const ETGmusic({super.key});
 
   @override
   Widget build(BuildContext context, ref) {
@@ -191,7 +191,7 @@ class Spotube extends HookConsumerWidget {
       ],
       routerConfig: router.config(),
       debugShowCheckedModeBanner: false,
-      title: 'Spotube',
+      title: 'ETGmusic',
       builder: (context, child) {
         child = ScrollConfiguration(
           behavior: ScrollConfiguration.of(context).copyWith(

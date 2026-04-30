@@ -1,16 +1,14 @@
 import 'package:flutter/services.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
-import 'package:spotube/collections/assets.gen.dart';
-import 'package:spotube/collections/env.dart';
-import 'package:spotube/components/button/back_button.dart';
-import 'package:spotube/components/image/universal_image.dart';
-import 'package:spotube/components/links/hyper_link.dart';
-import 'package:spotube/components/titlebar/titlebar.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/hooks/controllers/use_package_info.dart';
+import 'package:etgmusic/collections/assets.gen.dart';
+import 'package:etgmusic/collections/env.dart';
+import 'package:etgmusic/components/button/back_button.dart';
+import 'package:etgmusic/components/links/hyper_link.dart';
+import 'package:etgmusic/components/titlebar/titlebar.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/hooks/controllers/use_package_info.dart';
 
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:auto_route/auto_route.dart';
 
 final _licenseProvider = FutureProvider<String>((ref) async {
@@ -37,7 +35,7 @@ class AboutSpotubePage extends HookConsumerWidget {
         headers: [
           TitleBar(
             leading: const [BackButton()],
-            title: Text(context.l10n.about_spotube),
+            title: Text(context.l10n.about_etgmusic),
           )
         ],
         child: SingleChildScrollView(
@@ -52,7 +50,7 @@ class AboutSpotubePage extends HookConsumerWidget {
                 Center(
                   child: Column(
                     children: [
-                      Text(context.l10n.spotube_description).semiBold().large(),
+                      Text(context.l10n.etgmusic_description).semiBold().large(),
                       const SizedBox(height: 20),
                       Table(
                         columnWidths: const {
@@ -64,13 +62,10 @@ class AboutSpotubePage extends HookConsumerWidget {
                         rows: [
                           TableRow(
                             cells: [
-                              TableCell(child: Text(context.l10n.founder)),
+                              const TableCell(child: Text("ETGmusic")),
                               colon,
-                              TableCell(
-                                child: Hyperlink(
-                                  context.l10n.kingkor_roy_tirtho,
-                                  "https://github.com/KRTirtho",
-                                ),
+                              const TableCell(
+                                child: Hyperlink("@qwulise", "https://t.me/qwulise"),
                               )
                             ],
                           ),
@@ -98,14 +93,14 @@ class AboutSpotubePage extends HookConsumerWidget {
                               )
                             ],
                           ),
-                          const TableRow(
+                          TableRow(
                             cells: [
-                              TableCell(child: Text("Website")),
+                              const TableCell(child: Text("База")),
                               colon,
-                              TableCell(
+                              const TableCell(
                                 child: Hyperlink(
-                                  "spotube.krtirtho.dev",
-                                  "https://spotube.krtirtho.dev",
+                                  "Spotube",
+                                  "https://github.com/KRTirtho/spotube",
                                 ),
                               ),
                             ],
@@ -116,8 +111,8 @@ class AboutSpotubePage extends HookConsumerWidget {
                               colon,
                               const TableCell(
                                 child: Hyperlink(
-                                  "github.com/KRTirtho/spotube",
-                                  "https://github.com/KRTirtho/spotube",
+                                  "github.com/qwulise1/ETGmusic",
+                                  "https://github.com/qwulise1/ETGmusic",
                                 ),
                               ),
                             ],
@@ -134,45 +129,19 @@ class AboutSpotubePage extends HookConsumerWidget {
                               ),
                             ],
                           ),
-                          TableRow(
-                            cells: [
-                              TableCell(child: Text(context.l10n.bug_issues)),
-                              colon,
-                              const TableCell(
-                                child: Hyperlink(
-                                  "Discord#chat",
-                                  "https://discord.gg/uJ94vxB6vg",
-                                ),
-                              ),
-                            ],
-                          ),
                         ],
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 20),
-                MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: GestureDetector(
-                    onTap: () => launchUrl(
-                      Uri.parse("https://discord.gg/uJ94vxB6vg"),
-                      mode: LaunchMode.externalApplication,
-                    ),
-                    child: const UniversalImage(
-                      path:
-                          "https://discord.com/api/guilds/1012234096237350943/widget.png?style=banner2",
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
                 Text(
-                  context.l10n.made_with,
+                  "ETGmusic адаптирован под Telegram-музыку, локальную библиотеку, плагины и скробблеры. Основа Spotube и BSD-4-Clause лицензия сохранены.",
                   textAlign: TextAlign.center,
                   style: theme.typography.small,
                 ),
                 Text(
-                  context.l10n.copyright(DateTime.now().year),
+                  "Автор адаптации: @qwulise",
                   textAlign: TextAlign.center,
                   style: theme.typography.small,
                 ),

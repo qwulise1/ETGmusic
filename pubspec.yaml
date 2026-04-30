@@ -1,12 +1,12 @@
-name: spotube
-description: Open source extensible music streaming platform and app, based on BYOMM (Bring your own music metadata) concept
+name: etgmusic
+description: Telegram-first ETGmusic player built on Spotube with streaming, plugins, local library, lyrics, downloads, and scrobblers.
 
 publish_to: "none"
 
 version: 5.1.1+44
 
-homepage: https://spotube.krtirtho.dev
-repository: https://github.com/KRTirtho/spotube
+homepage: https://github.com/qwulise1/ETGmusic
+repository: https://github.com/qwulise1/ETGmusic
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -220,6 +220,10 @@ flutter:
     - assets/branding/spotube-logo.png
     - assets/branding/spotube-logo-light.png
     - assets/branding/spotube-logo.ico
+    - assets/branding/etgmusic-logo.png
+    - assets/branding/etgmusic-logo.ico
+    - assets/branding/etgmusic-logo.bmp
+    - assets/branding/etgmusic-logo_android12.png
     - assets/plugins/spotube-plugin-musicbrainz-listenbrainz/plugin.smplug
     - assets/plugins/spotube-plugin-youtube-audio/plugin.smplug
     - LICENSE
@@ -272,11 +276,11 @@ flutter_gen:
   output: lib/collections
 
 flutter_native_splash:
-  background_image: assets/bengali-patterns-bg.jpg
-  image: assets/spotube-logo.png
-  branding: assets/branding.png
+  background_image: assets/images/bengali-patterns-bg.jpg
+  image: assets/branding/etgmusic-logo.png
+  branding: assets/branding/branding.png
   android_12:
-    image: assets/spotube-logo_android12.png
-    branding: assets/branding.png
+    image: assets/branding/etgmusic-logo_android12.png
+    branding: assets/branding/branding.png
     color: "#000000"
     icon_background_color: "#000000"

@@ -1,9 +1,9 @@
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/components/ui/button_tile.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/services/audio_player/audio_player.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/components/ui/button_tile.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/services/audio_player/audio_player.dart';
 
 class ConnectPageLocalDevices extends HookWidget {
   const ConnectPageLocalDevices({super.key});

@@ -1,6 +1,6 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/services/wikipedia/wikipedia.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/services/wikipedia/wikipedia.dart';
 import 'package:wikipedia_api/wikipedia_api.dart';
 
 final artistWikipediaSummaryProvider =

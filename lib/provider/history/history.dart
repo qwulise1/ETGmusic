@@ -1,7 +1,7 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:spotube/models/database/database.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/provider/database/database.dart';
+import 'package:etgmusic/models/database/database.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/provider/database/database.dart';
 
 class PlaybackHistoryActions {
   final Ref ref;

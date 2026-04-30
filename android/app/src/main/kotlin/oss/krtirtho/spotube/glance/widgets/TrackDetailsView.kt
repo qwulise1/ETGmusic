@@ -1,4 +1,4 @@
-package oss.krtirtho.spotube.glance.widgets
+package io.qwulise1.etgmusic.glance.widgets
 
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -22,8 +22,8 @@ import androidx.glance.layout.size
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
-import oss.krtirtho.spotube.glance.Breakpoints
-import oss.krtirtho.spotube.glance.models.Track
+import io.qwulise1.etgmusic.glance.Breakpoints
+import io.qwulise1.etgmusic.glance.models.Track
 
 @Composable
 fun TrackDetailsView(activeTrack: Track?) {

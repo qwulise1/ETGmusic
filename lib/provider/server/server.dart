@@ -3,11 +3,11 @@ import 'dart:math';
 
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shelf/shelf_io.dart';
-import 'package:spotube/provider/server/pipeline.dart';
-import 'package:spotube/provider/server/router.dart';
-import 'package:spotube/provider/user_preferences/user_preferences_provider.dart';
-import 'package:spotube/services/audio_player/audio_player.dart';
-import 'package:spotube/services/logger/logger.dart';
+import 'package:etgmusic/provider/server/pipeline.dart';
+import 'package:etgmusic/provider/server/router.dart';
+import 'package:etgmusic/provider/user_preferences/user_preferences_provider.dart';
+import 'package:etgmusic/services/audio_player/audio_player.dart';
+import 'package:etgmusic/services/logger/logger.dart';
 
 final serverProvider = FutureProvider(
   (ref) async {

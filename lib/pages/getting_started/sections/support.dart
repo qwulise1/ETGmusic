@@ -1,12 +1,12 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
-import 'package:spotube/collections/env.dart';
-import 'package:spotube/collections/routes.gr.dart';
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/modules/getting_started/blur_card.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/services/kv_store/kv_store.dart';
+import 'package:etgmusic/collections/env.dart';
+import 'package:etgmusic/collections/routes.gr.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/modules/getting_started/blur_card.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/services/kv_store/kv_store.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
 class GettingStartedScreenSupportSection extends HookConsumerWidget {
@@ -56,7 +56,7 @@ class GettingStartedScreenSupportSection extends HookConsumerWidget {
                       }),
                       onPressed: () async {
                         await launchUrlString(
-                          "https://github.com/KRTirtho/spotube",
+                          "https://github.com/qwulise1/ETGmusic",
                           mode: LaunchMode.externalApplication,
                         );
                       },
@@ -83,7 +83,7 @@ class GettingStartedScreenSupportSection extends HookConsumerWidget {
                         }),
                         onPressed: () async {
                           await launchUrlString(
-                            "https://opencollective.com/spotube",
+                            "https://github.com/qwulise1/ETGmusic",
                             mode: LaunchMode.externalApplication,
                           );
                         },

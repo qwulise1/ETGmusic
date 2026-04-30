@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=Spotube
-Exec=/usr/bin/spotube
-Icon=/usr/share/icons/spotube/spotube-logo.png
+Name=ETGmusic
+Exec=/usr/bin/etgmusic
+Icon=/usr/share/icons/etgmusic/etgmusic-logo.png
 Comment=A music streaming app combining the power of music metadata providers & YouTube
 Terminal=false
 Categories=Audio;Music;Player;AudioVideo;

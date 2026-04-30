@@ -1,11 +1,11 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
-import 'package:spotube/collections/routes.gr.dart';
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/extensions/constrains.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/provider/connect/clients.dart';
+import 'package:etgmusic/collections/routes.gr.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/extensions/constrains.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/provider/connect/clients.dart';
 
 class ConnectDeviceButton extends HookConsumerWidget {
   final bool _sidebar;

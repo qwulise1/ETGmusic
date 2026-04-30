@@ -1,4 +1,4 @@
-package oss.krtirtho.spotube.glance.models
+package io.qwulise1.etgmusic.glance.models
 
 import com.google.gson.annotations.SerializedName
 import kotlinx.serialization.Serializable

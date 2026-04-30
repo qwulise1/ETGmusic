@@ -1,11 +1,11 @@
 import 'package:flutter/gestures.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/components/image/universal_image.dart';
-import 'package:spotube/extensions/constrains.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/provider/metadata_plugin/artist/wikipedia.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/components/image/universal_image.dart';
+import 'package:etgmusic/extensions/constrains.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/provider/metadata_plugin/artist/wikipedia.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
 class ArtistPageFooter extends ConsumerWidget {

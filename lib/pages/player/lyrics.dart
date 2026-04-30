@@ -2,14 +2,14 @@ import 'package:auto_route/annotations.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/components/button/back_button.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/hooks/utils/use_palette_color.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/pages/lyrics/plain_lyrics.dart';
-import 'package:spotube/pages/lyrics/synced_lyrics.dart';
-import 'package:spotube/provider/audio_player/audio_player.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/components/button/back_button.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/hooks/utils/use_palette_color.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/pages/lyrics/plain_lyrics.dart';
+import 'package:etgmusic/pages/lyrics/synced_lyrics.dart';
+import 'package:etgmusic/provider/audio_player/audio_player.dart';
 
 @RoutePage()
 class PlayerLyricsPage extends HookConsumerWidget {

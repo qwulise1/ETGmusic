@@ -2,13 +2,13 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import 'package:shadcn_flutter/shadcn_flutter_extension.dart';
-import 'package:spotube/collections/routes.dart';
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/components/ui/button_tile.dart';
-import 'package:spotube/extensions/constrains.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/provider/track_options/track_options_provider.dart';
+import 'package:etgmusic/collections/routes.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/components/ui/button_tile.dart';
+import 'package:etgmusic/extensions/constrains.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/provider/track_options/track_options_provider.dart';
 
 /// [track] must be a [SpotubeFullTrackObject] or [SpotubeLocalTrackObject]
 class TrackOptions extends HookConsumerWidget {

@@ -5,12 +5,12 @@ import 'package:drift/drift.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:lrc/lrc.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:spotube/models/database/database.dart';
-import 'package:spotube/models/lyrics.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/provider/database/database.dart';
-import 'package:spotube/services/dio/dio.dart';
-import 'package:spotube/services/logger/logger.dart';
+import 'package:etgmusic/models/database/database.dart';
+import 'package:etgmusic/models/lyrics.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/provider/database/database.dart';
+import 'package:etgmusic/services/dio/dio.dart';
+import 'package:etgmusic/services/logger/logger.dart';
 
 class SyncedLyricsNotifier
     extends FamilyAsyncNotifier<SubtitleSimple, SpotubeTrackObject?> {
@@ -37,7 +37,7 @@ class SyncedLyricsNotifier
       options: Options(
         headers: {
           "User-Agent":
-              "Spotube v${packageInfo.version} (https://github.com/KRTirtho/spotube)"
+              "ETGmusic v${packageInfo.version} (https://github.com/KRTirtho/spotube)"
         },
         responseType: ResponseType.json,
       ),

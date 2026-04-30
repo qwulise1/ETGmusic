@@ -2,15 +2,15 @@ import 'package:collection/collection.dart';
 
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
-import 'package:spotube/components/dialogs/prompt_dialog.dart';
-import 'package:spotube/components/dialogs/select_device_dialog.dart';
-import 'package:spotube/components/track_tile/track_tile.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/models/connect/connect.dart';
-import 'package:spotube/pages/search/search.dart';
-import 'package:spotube/provider/connect/connect.dart';
-import 'package:spotube/provider/audio_player/audio_player.dart';
-import 'package:spotube/provider/metadata_plugin/search/all.dart';
+import 'package:etgmusic/components/dialogs/prompt_dialog.dart';
+import 'package:etgmusic/components/dialogs/select_device_dialog.dart';
+import 'package:etgmusic/components/track_tile/track_tile.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/models/connect/connect.dart';
+import 'package:etgmusic/pages/search/search.dart';
+import 'package:etgmusic/provider/connect/connect.dart';
+import 'package:etgmusic/provider/audio_player/audio_player.dart';
+import 'package:etgmusic/provider/metadata_plugin/search/all.dart';
 
 class SearchTracksSection extends HookConsumerWidget {
   const SearchTracksSection({

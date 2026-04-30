@@ -4,13 +4,13 @@ import 'package:flutter/material.dart' show ListTile;
 
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' hide ButtonStyle;
-import 'package:spotube/collections/env.dart';
-import 'package:spotube/collections/routes.gr.dart';
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/modules/settings/section_card_with_heading.dart';
-import 'package:spotube/components/adaptive/adaptive_list_tile.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/provider/user_preferences/user_preferences_provider.dart';
+import 'package:etgmusic/collections/env.dart';
+import 'package:etgmusic/collections/routes.gr.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/modules/settings/section_card_with_heading.dart';
+import 'package:etgmusic/components/adaptive/adaptive_list_tile.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/provider/user_preferences/user_preferences_provider.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
 class SettingsAboutSection extends HookConsumerWidget {
@@ -36,7 +36,7 @@ class SettingsAboutSection extends HookConsumerWidget {
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: AutoSizeText(
-                  context.l10n.u_love_spotube,
+                  context.l10n.u_love_etgmusic,
                   maxLines: 1,
                   style: const TextStyle(
                     color: Colors.pink,
@@ -67,7 +67,7 @@ class SettingsAboutSection extends HookConsumerWidget {
               ),
               onPressed: () {
                 launchUrlString(
-                  "https://opencollective.com/spotube",
+                  "https://github.com/qwulise1/ETGmusic",
                   mode: LaunchMode.externalApplication,
                 );
               },
@@ -87,7 +87,7 @@ class SettingsAboutSection extends HookConsumerWidget {
           ),
         ListTile(
           leading: const Icon(SpotubeIcons.info),
-          title: Text(context.l10n.about_spotube),
+          title: Text(context.l10n.about_etgmusic),
           trailing: const Icon(SpotubeIcons.angleRight),
           onTap: () {
             context.navigateTo(const AboutSpotubeRoute());

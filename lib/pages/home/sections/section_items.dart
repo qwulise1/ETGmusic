@@ -4,15 +4,15 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:shadcn_flutter/shadcn_flutter_extension.dart';
 import 'package:skeletonizer/skeletonizer.dart';
-import 'package:spotube/components/playbutton_view/playbutton_card.dart';
-import 'package:spotube/components/waypoint.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/modules/album/album_card.dart';
-import 'package:spotube/modules/artist/artist_card.dart';
-import 'package:spotube/modules/playlist/playlist_card.dart';
-import 'package:spotube/components/titlebar/titlebar.dart';
-import 'package:spotube/provider/metadata_plugin/browse/section_items.dart';
-import 'package:spotube/provider/metadata_plugin/utils/common.dart';
+import 'package:etgmusic/components/playbutton_view/playbutton_card.dart';
+import 'package:etgmusic/components/waypoint.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/modules/album/album_card.dart';
+import 'package:etgmusic/modules/artist/artist_card.dart';
+import 'package:etgmusic/modules/playlist/playlist_card.dart';
+import 'package:etgmusic/components/titlebar/titlebar.dart';
+import 'package:etgmusic/provider/metadata_plugin/browse/section_items.dart';
+import 'package:etgmusic/provider/metadata_plugin/utils/common.dart';
 
 const _dummyPlaybuttonCard = PlaybuttonCard(
   imageUrl: 'https://placehold.co/150x150.png',

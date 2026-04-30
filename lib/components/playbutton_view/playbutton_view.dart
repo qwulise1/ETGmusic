@@ -3,12 +3,12 @@ import 'package:flutter_undraw/flutter_undraw.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:shadcn_flutter/shadcn_flutter_extension.dart';
 import 'package:skeletonizer/skeletonizer.dart';
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/components/playbutton_view/playbutton_card.dart';
-import 'package:spotube/components/playbutton_view/playbutton_tile.dart';
-import 'package:spotube/components/waypoint.dart';
-import 'package:spotube/extensions/constrains.dart';
-import 'package:spotube/extensions/context.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/components/playbutton_view/playbutton_card.dart';
+import 'package:etgmusic/components/playbutton_view/playbutton_tile.dart';
+import 'package:etgmusic/components/waypoint.dart';
+import 'package:etgmusic/extensions/constrains.dart';
+import 'package:etgmusic/extensions/context.dart';
 import 'package:very_good_infinite_list/very_good_infinite_list.dart';
 
 const _dummyPlaybuttonCard = PlaybuttonCard(

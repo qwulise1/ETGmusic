@@ -1,7 +1,7 @@
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:shadcn_flutter/shadcn_flutter_extension.dart';
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/extensions/constrains.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/extensions/constrains.dart';
 
 class AdaptiveMenuButton<T> extends MenuButton {
   final T? value;

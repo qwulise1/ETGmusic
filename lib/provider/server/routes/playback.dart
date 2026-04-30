@@ -9,18 +9,18 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:metadata_god/metadata_god.dart';
 import 'package:path/path.dart';
 import 'package:shelf/shelf.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/models/parser/range_headers.dart';
-import 'package:spotube/provider/audio_player/audio_player.dart';
-import 'package:spotube/provider/audio_player/state.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/models/parser/range_headers.dart';
+import 'package:etgmusic/provider/audio_player/audio_player.dart';
+import 'package:etgmusic/provider/audio_player/state.dart';
 
-import 'package:spotube/provider/server/active_track_sources.dart';
-import 'package:spotube/provider/server/sourced_track_provider.dart';
-import 'package:spotube/provider/user_preferences/user_preferences_provider.dart';
-import 'package:spotube/services/audio_player/audio_player.dart';
-import 'package:spotube/services/logger/logger.dart';
-import 'package:spotube/services/sourced_track/sourced_track.dart';
-import 'package:spotube/utils/service_utils.dart';
+import 'package:etgmusic/provider/server/active_track_sources.dart';
+import 'package:etgmusic/provider/server/sourced_track_provider.dart';
+import 'package:etgmusic/provider/user_preferences/user_preferences_provider.dart';
+import 'package:etgmusic/services/audio_player/audio_player.dart';
+import 'package:etgmusic/services/logger/logger.dart';
+import 'package:etgmusic/services/sourced_track/sourced_track.dart';
+import 'package:etgmusic/utils/service_utils.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 final _deviceClients = Set.unmodifiable({

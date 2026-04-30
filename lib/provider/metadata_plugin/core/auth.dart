@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:riverpod/riverpod.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/provider/metadata_plugin/metadata_plugin_provider.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/provider/metadata_plugin/metadata_plugin_provider.dart';
 
 class MetadataPluginAuthenticatedNotifier extends AsyncNotifier<bool> {
   @override

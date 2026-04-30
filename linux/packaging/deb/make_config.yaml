@@ -1,5 +1,5 @@
-display_name: Spotube
-package_name: spotube
+display_name: ETGmusic
+package_name: etgmusic
 
 maintainer:
   name: Kingkor Roy Tirtho
@@ -30,7 +30,7 @@ suggested_dependencies:
   - yt-dlp
 
 essential: false
-icon: assets/branding/spotube-logo.png
+icon: assets/branding/etgmusic-logo.png
 
 keywords:
   - Music

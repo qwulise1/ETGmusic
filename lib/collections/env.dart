@@ -1,5 +1,5 @@
 import 'package:envied/envied.dart';
-import 'package:spotube/utils/platform.dart';
+import 'package:etgmusic/utils/platform.dart';
 
 part 'env.g.dart';
 
@@ -16,12 +16,12 @@ abstract class Env {
   @EnviedField(varName: 'LASTFM_API_SECRET')
   static final String lastFmApiSecret = _Env.lastFmApiSecret;
 
-  @EnviedField(varName: 'HIDE_DONATIONS', defaultValue: "0")
+  @EnviedField(varName: 'HIDE_DONATIONS', defaultValue: "1")
   static final int _hideDonations = _Env._hideDonations;
 
   static bool get hideDonations => _hideDonations == 1;
 
-  @EnviedField(varName: 'ENABLE_UPDATE_CHECK', defaultValue: "1")
+  @EnviedField(varName: 'ENABLE_UPDATE_CHECK', defaultValue: "0")
   static final String _enableUpdateChecker = _Env._enableUpdateChecker;
 
   @EnviedField(varName: "RELEASE_CHANNEL", defaultValue: "nightly")

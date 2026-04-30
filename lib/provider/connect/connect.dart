@@ -2,17 +2,17 @@ import 'dart:convert';
 
 import 'package:media_kit/media_kit.dart' hide Track;
 import 'package:shadcn_flutter/shadcn_flutter.dart';
-import 'package:spotube/collections/routes.dart';
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/provider/audio_player/state.dart';
-import 'package:spotube/services/audio_player/audio_player.dart';
-import 'package:spotube/services/logger/logger.dart';
+import 'package:etgmusic/collections/routes.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/provider/audio_player/state.dart';
+import 'package:etgmusic/services/audio_player/audio_player.dart';
+import 'package:etgmusic/services/logger/logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:spotube/models/connect/connect.dart';
+import 'package:etgmusic/models/connect/connect.dart';
 
-import 'package:spotube/provider/connect/clients.dart';
+import 'package:etgmusic/provider/connect/clients.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status;
 

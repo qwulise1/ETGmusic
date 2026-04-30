@@ -1,7 +1,7 @@
 import 'package:riverpod/riverpod.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/provider/metadata_plugin/core/auth.dart';
-import 'package:spotube/provider/metadata_plugin/utils/paginated.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/provider/metadata_plugin/core/auth.dart';
+import 'package:etgmusic/provider/metadata_plugin/utils/paginated.dart';
 
 class MetadataPluginSavedArtistNotifier
     extends PaginatedAsyncNotifier<SpotubeFullArtistObject> {

@@ -1,7 +1,7 @@
 import 'package:bonsoir/bonsoir.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:spotube/services/device_info/device_info.dart';
-import 'package:spotube/services/logger/logger.dart';
+import 'package:etgmusic/services/device_info/device_info.dart';
+import 'package:etgmusic/services/logger/logger.dart';
 
 class ConnectClientsState {
   final List<BonsoirService> services;

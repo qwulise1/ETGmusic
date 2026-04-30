@@ -2,9 +2,9 @@ import 'package:flutter_undraw/flutter_undraw.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:shadcn_flutter/shadcn_flutter_extension.dart';
-import 'package:spotube/extensions/constrains.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/pages/search/search.dart';
+import 'package:etgmusic/extensions/constrains.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/pages/search/search.dart';
 
 class SearchPlaceholder extends HookConsumerWidget {
   final AsyncValue snapshot;

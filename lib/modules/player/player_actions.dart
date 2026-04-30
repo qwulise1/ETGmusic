@@ -4,22 +4,22 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:shadcn_flutter/shadcn_flutter_extension.dart';
-import 'package:spotube/collections/routes.gr.dart';
+import 'package:etgmusic/collections/routes.gr.dart';
 
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/extensions/constrains.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/modules/player/player_queue.dart';
-import 'package:spotube/modules/player/sibling_tracks_sheet.dart';
-import 'package:spotube/components/adaptive/adaptive_pop_sheet_list.dart';
-import 'package:spotube/components/heart_button/heart_button.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/extensions/duration.dart';
-import 'package:spotube/provider/download_manager_provider.dart';
-import 'package:spotube/provider/audio_player/audio_player.dart';
-import 'package:spotube/provider/local_tracks/local_tracks_provider.dart';
-import 'package:spotube/provider/metadata_plugin/core/auth.dart';
-import 'package:spotube/provider/sleep_timer_provider.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/extensions/constrains.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/modules/player/player_queue.dart';
+import 'package:etgmusic/modules/player/sibling_tracks_sheet.dart';
+import 'package:etgmusic/components/adaptive/adaptive_pop_sheet_list.dart';
+import 'package:etgmusic/components/heart_button/heart_button.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/extensions/duration.dart';
+import 'package:etgmusic/provider/download_manager_provider.dart';
+import 'package:etgmusic/provider/audio_player/audio_player.dart';
+import 'package:etgmusic/provider/local_tracks/local_tracks_provider.dart';
+import 'package:etgmusic/provider/metadata_plugin/core/auth.dart';
+import 'package:etgmusic/provider/sleep_timer_provider.dart';
 
 class PlayerActions extends HookConsumerWidget {
   final MainAxisAlignment mainAxisAlignment;

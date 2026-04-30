@@ -3,9 +3,9 @@ import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter_undraw/flutter_undraw.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:shadcn_flutter/shadcn_flutter_extension.dart';
-import 'package:spotube/collections/routes.gr.dart';
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/extensions/context.dart';
+import 'package:etgmusic/collections/routes.gr.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/extensions/context.dart';
 
 class NoDefaultMetadataPlugin extends StatelessWidget {
   const NoDefaultMetadataPlugin({super.key});

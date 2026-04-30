@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/models/metadata/metadata.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
 
 final replaceDownloadedFileState = StateProvider<bool?>((ref) => null);
 

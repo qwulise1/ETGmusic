@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/provider/metadata_plugin/core/auth.dart';
-import 'package:spotube/provider/metadata_plugin/utils/family_paginated.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/provider/metadata_plugin/core/auth.dart';
+import 'package:etgmusic/provider/metadata_plugin/utils/family_paginated.dart';
 
 class MetadataPluginBrowseSectionItemsNotifier
     extends FamilyPaginatedAsyncNotifier<Object, String> {

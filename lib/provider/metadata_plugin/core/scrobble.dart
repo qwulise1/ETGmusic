@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/provider/metadata_plugin/metadata_plugin_provider.dart';
-import 'package:spotube/services/logger/logger.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/provider/metadata_plugin/metadata_plugin_provider.dart';
+import 'package:etgmusic/services/logger/logger.dart';
 
 class MetadataPluginScrobbleNotifier
     extends Notifier<StreamController<SpotubeTrackObject>?> {

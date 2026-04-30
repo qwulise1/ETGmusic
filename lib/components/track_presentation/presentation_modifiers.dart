@@ -1,14 +1,14 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:shadcn_flutter/shadcn_flutter_extension.dart';
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/components/track_presentation/sort_tracks_dropdown.dart';
-import 'package:spotube/components/track_presentation/presentation_actions.dart';
-import 'package:spotube/components/track_presentation/presentation_props.dart';
-import 'package:spotube/components/track_presentation/presentation_state.dart';
-import 'package:spotube/extensions/constrains.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/hooks/controllers/use_shadcn_text_editing_controller.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/components/track_presentation/sort_tracks_dropdown.dart';
+import 'package:etgmusic/components/track_presentation/presentation_actions.dart';
+import 'package:etgmusic/components/track_presentation/presentation_props.dart';
+import 'package:etgmusic/components/track_presentation/presentation_state.dart';
+import 'package:etgmusic/extensions/constrains.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/hooks/controllers/use_shadcn_text_editing_controller.dart';
 
 class TrackPresentationModifiersSection extends HookConsumerWidget {
   final FocusNode? focusNode;

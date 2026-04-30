@@ -1,13 +1,13 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:spotube/collections/env.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/provider/audio_player/audio_player.dart';
-import 'package:spotube/services/audio_player/audio_player.dart';
-import 'package:spotube/services/audio_services/mobile_audio_service.dart';
-import 'package:spotube/services/audio_services/windows_audio_service.dart';
-import 'package:spotube/utils/platform.dart';
+import 'package:etgmusic/collections/env.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/provider/audio_player/audio_player.dart';
+import 'package:etgmusic/services/audio_player/audio_player.dart';
+import 'package:etgmusic/services/audio_services/mobile_audio_service.dart';
+import 'package:etgmusic/services/audio_services/windows_audio_service.dart';
+import 'package:etgmusic/utils/platform.dart';
 
 class AudioServices with WidgetsBindingObserver {
   final MobileAudioService? mobile;

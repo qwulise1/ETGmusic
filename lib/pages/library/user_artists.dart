@@ -8,21 +8,21 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:shadcn_flutter/shadcn_flutter_extension.dart';
 import 'package:skeletonizer/skeletonizer.dart';
-import 'package:spotube/collections/fake.dart';
+import 'package:etgmusic/collections/fake.dart';
 
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/components/fallbacks/anonymous_fallback.dart';
-import 'package:spotube/components/fallbacks/error_box.dart';
-import 'package:spotube/components/fallbacks/no_default_metadata_plugin.dart';
-import 'package:spotube/modules/artist/artist_card.dart';
-import 'package:spotube/components/inter_scrollbar/inter_scrollbar.dart';
-import 'package:spotube/components/waypoint.dart';
-import 'package:spotube/extensions/constrains.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/provider/metadata_plugin/core/auth.dart';
-import 'package:spotube/provider/metadata_plugin/library/artists.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/components/fallbacks/anonymous_fallback.dart';
+import 'package:etgmusic/components/fallbacks/error_box.dart';
+import 'package:etgmusic/components/fallbacks/no_default_metadata_plugin.dart';
+import 'package:etgmusic/modules/artist/artist_card.dart';
+import 'package:etgmusic/components/inter_scrollbar/inter_scrollbar.dart';
+import 'package:etgmusic/components/waypoint.dart';
+import 'package:etgmusic/extensions/constrains.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/provider/metadata_plugin/core/auth.dart';
+import 'package:etgmusic/provider/metadata_plugin/library/artists.dart';
 import 'package:auto_route/auto_route.dart';
-import 'package:spotube/services/metadata/errors/exceptions.dart';
+import 'package:etgmusic/services/metadata/errors/exceptions.dart';
 
 @RoutePage()
 class UserArtistsPage extends HookConsumerWidget {

@@ -3,12 +3,12 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:shadcn_flutter/shadcn_flutter_extension.dart';
 import 'package:skeletonizer/skeletonizer.dart';
-import 'package:spotube/collections/formatters.dart';
-import 'package:spotube/modules/stats/common/track_item.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/provider/history/top.dart';
-import 'package:spotube/provider/history/top/tracks.dart';
-import 'package:spotube/provider/metadata_plugin/utils/common.dart';
+import 'package:etgmusic/collections/formatters.dart';
+import 'package:etgmusic/modules/stats/common/track_item.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/provider/history/top.dart';
+import 'package:etgmusic/provider/history/top/tracks.dart';
+import 'package:etgmusic/provider/metadata_plugin/utils/common.dart';
 import 'package:very_good_infinite_list/very_good_infinite_list.dart';
 
 class TopTracks extends HookConsumerWidget {

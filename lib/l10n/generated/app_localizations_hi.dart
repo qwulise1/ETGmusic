@@ -490,13 +490,13 @@ class AppLocalizationsHi extends AppLocalizations {
   String get about => 'के बारे में';
 
   @override
-  String get u_love_spotube => 'हम जानते हैं कि आप Spotube से प्यार करते हैं';
+  String get u_love_etgmusic => 'हम जानते हैं कि आप ETGmusic से प्यार करते हैं';
 
   @override
   String get check_for_updates => 'अपडेट के लिए जाँच करें';
 
   @override
-  String get about_spotube => 'Spotube के बारे में';
+  String get about_etgmusic => 'ETGmusic के बारे में';
 
   @override
   String get blacklist => 'ब्लैकलिस्ट';
@@ -505,8 +505,8 @@ class AppLocalizationsHi extends AppLocalizations {
   String get please_sponsor => 'कृपया स्पॉन्सर / डोनेट करें';
 
   @override
-  String get spotube_description =>
-      'Spotube, एक हल्का, सभी प्लेटफॉर्मों पर चलने वाला, मुफ्त स्पॉटिफाई क्लाइंट';
+  String get etgmusic_description =>
+      'ETGmusic, एक हल्का, सभी प्लेटफॉर्मों पर चलने वाला, मुफ्त स्पॉटिफाई क्लाइंट';
 
   @override
   String get version => 'संस्करण';
@@ -825,7 +825,7 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get encryption_failed_warning =>
-      'Spotube आपके डेटा को सुरक्षित रूप से स्टोर करने के लिए एन्क्रिप्शन का उपयोग करता है। लेकिन इसमें विफल रहा। इसलिए, यह असुरक्षित स्टोरेज पर फॉलबैक करेगा\nयदि आप Linux का उपयोग कर रहे हैं, तो कृपया सुनिश्चित करें कि आपके पास gnome-keyring, kde-wallet, keepassxc आदि जैसी कोई सीक्रेट-सर्विस इंस्टॉल की गई है';
+      'ETGmusic आपके डेटा को सुरक्षित रूप से स्टोर करने के लिए एन्क्रिप्शन का उपयोग करता है। लेकिन इसमें विफल रहा। इसलिए, यह असुरक्षित स्टोरेज पर फॉलबैक करेगा\nयदि आप Linux का उपयोग कर रहे हैं, तो कृपया सुनिश्चित करें कि आपके पास gnome-keyring, kde-wallet, keepassxc आदि जैसी कोई सीक्रेट-सर्विस इंस्टॉल की गई है';
 
   @override
   String get querying_info => 'जानकारी प्राप्त करना';
@@ -1006,7 +1006,7 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get choose_your_region_description =>
-      'यह Spotube को आपके स्थान के लिए सही सामग्री दिखाने में मदद करेगा।';
+      'यह ETGmusic को आपके स्थान के लिए सही सामग्री दिखाने में मदद करेगा।';
 
   @override
   String get choose_your_language => 'अपनी भाषा चुनें';
@@ -1016,7 +1016,7 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get help_project_grow_description =>
-      'Spotube एक ओपन सोर्स परियोजना है। आप इस परियोजना को योगदान देकर, बग रिपोर्ट करके या नई विशेषताओं का सुझाव देकर इस परियोजना को बढ़ा सकते हैं।';
+      'ETGmusic एक ओपन सोर्स परियोजना है। आप इस परियोजना को योगदान देकर, बग रिपोर्ट करके या नई विशेषताओं का सुझाव देकर इस परियोजना को बढ़ा सकते हैं।';
 
   @override
   String get contribute_on_github => 'GitHub पर योगदान करें';
@@ -1032,7 +1032,7 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get enable_connect_description =>
-      'अन्य उपकरणों से Spotube को नियंत्रित करें';
+      'अन्य उपकरणों से ETGmusic को नियंत्रित करें';
 
   @override
   String get devices => 'उपकरण';
@@ -1080,19 +1080,19 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get spotube_has_an_update => 'Spotube में एक अपडेट है';
+  String get etgmusic_has_an_update => 'ETGmusic में एक अपडेट है';
 
   @override
   String get download_now => 'अभी डाउनलोड करें';
 
   @override
   String nightly_version(Object nightlyBuildNum) {
-    return 'Spotube Nightly $nightlyBuildNum जारी किया गया है';
+    return 'ETGmusic Nightly $nightlyBuildNum जारी किया गया है';
   }
 
   @override
   String release_version(Object version) {
-    return 'Spotube v$version जारी किया गया है';
+    return 'ETGmusic v$version जारी किया गया है';
   }
 
   @override

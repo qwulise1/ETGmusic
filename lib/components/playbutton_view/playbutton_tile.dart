@@ -1,9 +1,9 @@
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:shadcn_flutter/shadcn_flutter_extension.dart';
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/components/image/universal_image.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/extensions/string.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/components/image/universal_image.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/extensions/string.dart';
 
 class PlaybuttonTile extends StatelessWidget {
   final void Function()? onTap;

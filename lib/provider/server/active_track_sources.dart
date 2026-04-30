@@ -1,8 +1,8 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/provider/audio_player/audio_player.dart';
-import 'package:spotube/provider/server/sourced_track_provider.dart';
-import 'package:spotube/services/sourced_track/sourced_track.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/provider/audio_player/audio_player.dart';
+import 'package:etgmusic/provider/server/sourced_track_provider.dart';
+import 'package:etgmusic/services/sourced_track/sourced_track.dart';
 
 final activeTrackSourcesProvider = FutureProvider<
     ({

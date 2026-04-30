@@ -3,12 +3,12 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:spotube/collections/routes.dart';
-import 'package:spotube/collections/routes.gr.dart';
-import 'package:spotube/modules/player/player_controls.dart';
-import 'package:spotube/provider/audio_player/querying_track_info.dart';
-import 'package:spotube/services/audio_player/audio_player.dart';
-import 'package:spotube/utils/platform.dart';
+import 'package:etgmusic/collections/routes.dart';
+import 'package:etgmusic/collections/routes.gr.dart';
+import 'package:etgmusic/modules/player/player_controls.dart';
+import 'package:etgmusic/provider/audio_player/querying_track_info.dart';
+import 'package:etgmusic/services/audio_player/audio_player.dart';
+import 'package:etgmusic/utils/platform.dart';
 
 class PlayPauseIntent extends Intent {
   final WidgetRef ref;

@@ -1,11 +1,11 @@
 import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/provider/metadata_plugin/core/auth.dart';
-import 'package:spotube/provider/metadata_plugin/metadata_plugin_provider.dart';
-import 'package:spotube/provider/metadata_plugin/tracks/playlist.dart';
-import 'package:spotube/provider/metadata_plugin/utils/paginated.dart';
-import 'package:spotube/services/metadata/errors/exceptions.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/provider/metadata_plugin/core/auth.dart';
+import 'package:etgmusic/provider/metadata_plugin/metadata_plugin_provider.dart';
+import 'package:etgmusic/provider/metadata_plugin/tracks/playlist.dart';
+import 'package:etgmusic/provider/metadata_plugin/utils/paginated.dart';
+import 'package:etgmusic/services/metadata/errors/exceptions.dart';
 
 class MetadataPluginSavedPlaylistsNotifier
     extends PaginatedAsyncNotifier<SpotubeSimplePlaylistObject> {

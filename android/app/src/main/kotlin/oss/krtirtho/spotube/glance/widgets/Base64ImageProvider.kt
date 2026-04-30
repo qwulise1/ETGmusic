@@ -1,4 +1,4 @@
-package oss.krtirtho.spotube.glance.widgets
+package io.qwulise1.etgmusic.glance.widgets
 
 import android.graphics.BitmapFactory
 import android.util.Base64

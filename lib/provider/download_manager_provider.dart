@@ -7,15 +7,15 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:metadata_god/metadata_god.dart';
 import 'package:path/path.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' hide join;
-import 'package:spotube/collections/routes.dart';
-import 'package:spotube/components/dialogs/replace_downloaded_dialog.dart';
-import 'package:spotube/extensions/dio.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/provider/metadata_plugin/audio_source/quality_presets.dart';
-import 'package:spotube/provider/server/sourced_track_provider.dart';
-import 'package:spotube/provider/user_preferences/user_preferences_provider.dart';
-import 'package:spotube/services/logger/logger.dart';
-import 'package:spotube/utils/service_utils.dart';
+import 'package:etgmusic/collections/routes.dart';
+import 'package:etgmusic/components/dialogs/replace_downloaded_dialog.dart';
+import 'package:etgmusic/extensions/dio.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/provider/metadata_plugin/audio_source/quality_presets.dart';
+import 'package:etgmusic/provider/server/sourced_track_provider.dart';
+import 'package:etgmusic/provider/user_preferences/user_preferences_provider.dart';
+import 'package:etgmusic/services/logger/logger.dart';
+import 'package:etgmusic/utils/service_utils.dart';
 
 enum DownloadStatus {
   queued,

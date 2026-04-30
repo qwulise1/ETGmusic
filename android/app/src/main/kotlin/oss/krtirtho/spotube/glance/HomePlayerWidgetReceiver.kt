@@ -1,4 +1,4 @@
-package oss.krtirtho.spotube.glance
+package io.qwulise1.etgmusic.glance
 
 import HomeWidgetGlanceWidgetReceiver
 

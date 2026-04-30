@@ -6,20 +6,20 @@ import 'package:flutter/material.dart' show ListTile;
 
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
-import 'package:spotube/collections/routes.gr.dart';
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/components/adaptive/adaptive_select_tile.dart';
-import 'package:spotube/models/database/database.dart';
-import 'package:spotube/modules/settings/playback/edit_connect_port_dialog.dart';
-import 'package:spotube/modules/settings/section_card_with_heading.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/modules/settings/youtube_engine_not_installed_dialog.dart';
-import 'package:spotube/provider/metadata_plugin/audio_source/quality_presets.dart';
-import 'package:spotube/provider/user_preferences/user_preferences_provider.dart';
-import 'package:spotube/services/kv_store/kv_store.dart';
-import 'package:spotube/services/youtube_engine/yt_dlp_engine.dart';
+import 'package:etgmusic/collections/routes.gr.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/components/adaptive/adaptive_select_tile.dart';
+import 'package:etgmusic/models/database/database.dart';
+import 'package:etgmusic/modules/settings/playback/edit_connect_port_dialog.dart';
+import 'package:etgmusic/modules/settings/section_card_with_heading.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/modules/settings/youtube_engine_not_installed_dialog.dart';
+import 'package:etgmusic/provider/metadata_plugin/audio_source/quality_presets.dart';
+import 'package:etgmusic/provider/user_preferences/user_preferences_provider.dart';
+import 'package:etgmusic/services/kv_store/kv_store.dart';
+import 'package:etgmusic/services/youtube_engine/yt_dlp_engine.dart';
 
-import 'package:spotube/utils/platform.dart';
+import 'package:etgmusic/utils/platform.dart';
 
 class SettingsPlaybackSection extends HookConsumerWidget {
   const SettingsPlaybackSection({super.key});

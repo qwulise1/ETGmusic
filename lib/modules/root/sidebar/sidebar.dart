@@ -3,13 +3,13 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
-import 'package:spotube/collections/side_bar_tiles.dart';
-import 'package:spotube/models/database/database.dart';
-import 'package:spotube/extensions/constrains.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/modules/root/sidebar/sidebar_footer.dart';
+import 'package:etgmusic/collections/side_bar_tiles.dart';
+import 'package:etgmusic/models/database/database.dart';
+import 'package:etgmusic/extensions/constrains.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/modules/root/sidebar/sidebar_footer.dart';
 
-import 'package:spotube/provider/user_preferences/user_preferences_provider.dart';
+import 'package:etgmusic/provider/user_preferences/user_preferences_provider.dart';
 
 class Sidebar extends HookConsumerWidget {
   final Widget child;

@@ -1,14 +1,14 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:skeletonizer/skeletonizer.dart';
-import 'package:spotube/collections/formatters.dart';
-import 'package:spotube/components/titlebar/titlebar.dart';
-import 'package:spotube/modules/stats/common/album_item.dart';
-import 'package:spotube/extensions/context.dart';
+import 'package:etgmusic/collections/formatters.dart';
+import 'package:etgmusic/components/titlebar/titlebar.dart';
+import 'package:etgmusic/modules/stats/common/album_item.dart';
+import 'package:etgmusic/extensions/context.dart';
 
-import 'package:spotube/provider/history/top.dart';
-import 'package:spotube/provider/history/top/albums.dart';
-import 'package:spotube/provider/metadata_plugin/utils/common.dart';
+import 'package:etgmusic/provider/history/top.dart';
+import 'package:etgmusic/provider/history/top/albums.dart';
+import 'package:etgmusic/provider/metadata_plugin/utils/common.dart';
 import 'package:very_good_infinite_list/very_good_infinite_list.dart';
 import 'package:auto_route/auto_route.dart';
 

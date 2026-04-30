@@ -4,16 +4,16 @@ import 'package:collection/collection.dart';
 import 'package:drift/drift.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
-import 'package:spotube/extensions/list.dart';
-import 'package:spotube/models/database/database.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/provider/audio_player/state.dart';
-import 'package:spotube/provider/blacklist_provider.dart';
-import 'package:spotube/provider/database/database.dart';
-import 'package:spotube/provider/discord_provider.dart';
-import 'package:spotube/provider/server/sourced_track_provider.dart';
-import 'package:spotube/services/audio_player/audio_player.dart';
-import 'package:spotube/services/logger/logger.dart';
+import 'package:etgmusic/extensions/list.dart';
+import 'package:etgmusic/models/database/database.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/provider/audio_player/state.dart';
+import 'package:etgmusic/provider/blacklist_provider.dart';
+import 'package:etgmusic/provider/database/database.dart';
+import 'package:etgmusic/provider/discord_provider.dart';
+import 'package:etgmusic/provider/server/sourced_track_provider.dart';
+import 'package:etgmusic/services/audio_player/audio_player.dart';
+import 'package:etgmusic/services/logger/logger.dart';
 
 class AudioPlayerNotifier extends Notifier<AudioPlayerState> {
   BlackListNotifier get _blacklist => ref.read(blacklistProvider.notifier);

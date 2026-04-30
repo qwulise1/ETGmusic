@@ -7,21 +7,21 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:skeletonizer/skeletonizer.dart';
-import 'package:spotube/collections/routes.gr.dart';
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/components/hover_builder.dart';
-import 'package:spotube/components/image/universal_image.dart';
-import 'package:spotube/components/links/artist_link.dart';
-import 'package:spotube/components/links/link_text.dart';
-import 'package:spotube/components/track_tile/track_options_button.dart';
-import 'package:spotube/components/ui/button_tile.dart';
-import 'package:spotube/extensions/constrains.dart';
-import 'package:spotube/extensions/duration.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/provider/audio_player/querying_track_info.dart';
-import 'package:spotube/provider/audio_player/state.dart';
-import 'package:spotube/provider/blacklist_provider.dart';
-import 'package:spotube/utils/platform.dart';
+import 'package:etgmusic/collections/routes.gr.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/components/hover_builder.dart';
+import 'package:etgmusic/components/image/universal_image.dart';
+import 'package:etgmusic/components/links/artist_link.dart';
+import 'package:etgmusic/components/links/link_text.dart';
+import 'package:etgmusic/components/track_tile/track_options_button.dart';
+import 'package:etgmusic/components/ui/button_tile.dart';
+import 'package:etgmusic/extensions/constrains.dart';
+import 'package:etgmusic/extensions/duration.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/provider/audio_player/querying_track_info.dart';
+import 'package:etgmusic/provider/audio_player/state.dart';
+import 'package:etgmusic/provider/blacklist_provider.dart';
+import 'package:etgmusic/utils/platform.dart';
 
 final isBlacklistedProvider =
     Provider.autoDispose.family<bool, SpotubeTrackObject>(

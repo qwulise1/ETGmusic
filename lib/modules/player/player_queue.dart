@@ -7,20 +7,20 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import 'package:scroll_to_index/scroll_to_index.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/components/button/back_button.dart';
-import 'package:spotube/components/dialogs/playlist_add_track_dialog.dart';
-import 'package:spotube/components/fallbacks/not_found.dart';
-import 'package:spotube/components/inter_scrollbar/inter_scrollbar.dart';
-import 'package:spotube/components/track_tile/track_tile.dart';
-import 'package:spotube/components/ui/button_tile.dart';
-import 'package:spotube/extensions/constrains.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/hooks/controllers/use_auto_scroll_controller.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/modules/player/player_queue_actions.dart';
-import 'package:spotube/provider/audio_player/audio_player.dart';
-import 'package:spotube/provider/audio_player/state.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/components/button/back_button.dart';
+import 'package:etgmusic/components/dialogs/playlist_add_track_dialog.dart';
+import 'package:etgmusic/components/fallbacks/not_found.dart';
+import 'package:etgmusic/components/inter_scrollbar/inter_scrollbar.dart';
+import 'package:etgmusic/components/track_tile/track_tile.dart';
+import 'package:etgmusic/components/ui/button_tile.dart';
+import 'package:etgmusic/extensions/constrains.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/hooks/controllers/use_auto_scroll_controller.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/modules/player/player_queue_actions.dart';
+import 'package:etgmusic/provider/audio_player/audio_player.dart';
+import 'package:etgmusic/provider/audio_player/state.dart';
 
 class PlayerQueue extends HookConsumerWidget {
   final bool floating;

@@ -3,15 +3,15 @@ import 'dart:async';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/modules/metadata_plugins/plugin_update_available_dialog.dart';
-import 'package:spotube/provider/metadata_plugin/metadata_plugin_provider.dart';
-import 'package:spotube/provider/metadata_plugin/updater/update_checker.dart';
-import 'package:spotube/provider/server/routes/connect.dart';
-import 'package:spotube/services/audio_player/audio_player.dart';
-import 'package:spotube/services/connectivity_adapter.dart';
-import 'package:spotube/utils/service_utils.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/modules/metadata_plugins/plugin_update_available_dialog.dart';
+import 'package:etgmusic/provider/metadata_plugin/metadata_plugin_provider.dart';
+import 'package:etgmusic/provider/metadata_plugin/updater/update_checker.dart';
+import 'package:etgmusic/provider/server/routes/connect.dart';
+import 'package:etgmusic/services/audio_player/audio_player.dart';
+import 'package:etgmusic/services/connectivity_adapter.dart';
+import 'package:etgmusic/utils/service_utils.dart';
 
 void useGlobalSubscriptions(WidgetRef ref) {
   final context = useContext();

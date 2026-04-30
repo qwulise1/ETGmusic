@@ -1,5 +1,5 @@
 import 'package:shadcn_flutter/shadcn_flutter.dart';
-import 'package:spotube/collections/spotube_icons.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
 
 class BackButton extends StatelessWidget {
   final Color? color;

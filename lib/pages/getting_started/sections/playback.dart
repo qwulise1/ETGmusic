@@ -1,10 +1,10 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/components/ui/button_tile.dart';
-import 'package:spotube/modules/getting_started/blur_card.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/provider/user_preferences/user_preferences_provider.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/components/ui/button_tile.dart';
+import 'package:etgmusic/modules/getting_started/blur_card.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/provider/user_preferences/user_preferences_provider.dart';
 
 class GettingStartedPagePlaybackSection extends HookConsumerWidget {
   final VoidCallback onNext;

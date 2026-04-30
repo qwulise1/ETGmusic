@@ -3,14 +3,14 @@ import 'package:auto_route/auto_route.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-import 'package:spotube/collections/assets.gen.dart';
-import 'package:spotube/collections/routes.gr.dart';
-import 'package:spotube/components/image/universal_image.dart';
-import 'package:spotube/components/links/artist_link.dart';
-import 'package:spotube/components/links/link_text.dart';
-import 'package:spotube/extensions/constrains.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/provider/audio_player/audio_player.dart';
+import 'package:etgmusic/collections/assets.gen.dart';
+import 'package:etgmusic/collections/routes.gr.dart';
+import 'package:etgmusic/components/image/universal_image.dart';
+import 'package:etgmusic/components/links/artist_link.dart';
+import 'package:etgmusic/components/links/link_text.dart';
+import 'package:etgmusic/extensions/constrains.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/provider/audio_player/audio_player.dart';
 
 class PlayerTrackDetails extends HookConsumerWidget {
   final Color? color;

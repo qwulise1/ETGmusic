@@ -491,14 +491,14 @@ class AppLocalizationsNe extends AppLocalizations {
   String get about => 'बारेमा';
 
   @override
-  String get u_love_spotube =>
-      'हामीले थाहा पारेका छौं तपाईंलाई Spotube मन पर्छ';
+  String get u_love_etgmusic =>
+      'हामीले थाहा पारेका छौं तपाईंलाई ETGmusic मन पर्छ';
 
   @override
   String get check_for_updates => 'अपडेटहरूको लागि जाँच गर्नुहोस्';
 
   @override
-  String get about_spotube => 'Spotube को बारेमा';
+  String get about_etgmusic => 'ETGmusic को बारेमा';
 
   @override
   String get blacklist => 'कालोसूची';
@@ -507,8 +507,8 @@ class AppLocalizationsNe extends AppLocalizations {
   String get please_sponsor => 'कृपया स्पन्सर/डोनेट गर्नुहोस्';
 
   @override
-  String get spotube_description =>
-      'Spotube, एक हल्का, समृद्ध, स्वतन्त्र Spotify क्लाइयन';
+  String get etgmusic_description =>
+      'ETGmusic, एक हल्का, समृद्ध, स्वतन्त्र Spotify क्लाइयन';
 
   @override
   String get version => 'संस्करण';
@@ -1013,7 +1013,7 @@ class AppLocalizationsNe extends AppLocalizations {
 
   @override
   String get choose_your_region_description =>
-      'यो Spotubeलाई तपाईंको स्थानका लागि सहि सामग्री देखाउने मद्दत गर्नेछ।';
+      'यो ETGmusicलाई तपाईंको स्थानका लागि सहि सामग्री देखाउने मद्दत गर्नेछ।';
 
   @override
   String get choose_your_language => 'तपाईंको भाषा छनौट गर्नुहोस्';
@@ -1023,7 +1023,7 @@ class AppLocalizationsNe extends AppLocalizations {
 
   @override
   String get help_project_grow_description =>
-      'Spotube एक खुला स्रोतको परियोजना हो। तपाईं परियोजनामा योगदान गरेर, त्रुटिहरू सूचिकै, वा नयाँ सुविधाहरू सुझाव दिएर यस परियोजनामा वृद्धि गर्न सक्नुहुन्छ।';
+      'ETGmusic एक खुला स्रोतको परियोजना हो। तपाईं परियोजनामा योगदान गरेर, त्रुटिहरू सूचिकै, वा नयाँ सुविधाहरू सुझाव दिएर यस परियोजनामा वृद्धि गर्न सक्नुहुन्छ।';
 
   @override
   String get contribute_on_github => 'GitHubमा योगदान गर्नुहोस्';
@@ -1039,7 +1039,7 @@ class AppLocalizationsNe extends AppLocalizations {
 
   @override
   String get enable_connect_description =>
-      'अन्य उपकरणहरूबाट Spotube कन्ट्रोल गर्नुहोस्';
+      'अन्य उपकरणहरूबाट ETGmusic कन्ट्रोल गर्नुहोस्';
 
   @override
   String get devices => 'उपकरणहरू';
@@ -1087,19 +1087,19 @@ class AppLocalizationsNe extends AppLocalizations {
   }
 
   @override
-  String get spotube_has_an_update => 'Spotube मा अपडेट छ';
+  String get etgmusic_has_an_update => 'ETGmusic मा अपडेट छ';
 
   @override
   String get download_now => 'अहिले डाउनलोड गर्नुहोस्';
 
   @override
   String nightly_version(Object nightlyBuildNum) {
-    return 'Spotube Nightly $nightlyBuildNum रिलिज गरिएको छ';
+    return 'ETGmusic Nightly $nightlyBuildNum रिलिज गरिएको छ';
   }
 
   @override
   String release_version(Object version) {
-    return 'Spotube v$version रिलिज गरिएको छ';
+    return 'ETGmusic v$version रिलिज गरिएको छ';
   }
 
   @override

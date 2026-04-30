@@ -11,14 +11,14 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/components/form/checkbox_form_field.dart';
-import 'package:spotube/components/form/text_form_field.dart';
-import 'package:spotube/components/image/universal_image.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/provider/metadata_plugin/library/playlists.dart';
-import 'package:spotube/provider/metadata_plugin/playlist/playlist.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/components/form/checkbox_form_field.dart';
+import 'package:etgmusic/components/form/text_form_field.dart';
+import 'package:etgmusic/components/image/universal_image.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/provider/metadata_plugin/library/playlists.dart';
+import 'package:etgmusic/provider/metadata_plugin/playlist/playlist.dart';
 
 class PlaylistCreateDialog extends HookConsumerWidget {
   /// Track ids to add to the playlist

@@ -1,11 +1,11 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
-import 'package:spotube/collections/routes.gr.dart';
-import 'package:spotube/components/links/artist_link.dart';
-import 'package:spotube/components/ui/button_tile.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/modules/album/album_card.dart';
-import 'package:spotube/components/image/universal_image.dart';
+import 'package:etgmusic/collections/routes.gr.dart';
+import 'package:etgmusic/components/links/artist_link.dart';
+import 'package:etgmusic/components/ui/button_tile.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/modules/album/album_card.dart';
+import 'package:etgmusic/components/image/universal_image.dart';
 
 class StatsAlbumItem extends StatelessWidget {
   final SpotubeSimpleAlbumObject album;

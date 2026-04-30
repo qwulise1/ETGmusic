@@ -1,7 +1,7 @@
 // ignore_for_file: unused_local_variable, unused_import
 import 'package:drift/drift.dart';
 import 'package:drift_dev/api/migrations.dart';
-import 'package:spotube/models/database/database.dart';
+import 'package:etgmusic/models/database/database.dart';
 import 'package:test/test.dart';
 import 'generated/schema.dart';
 

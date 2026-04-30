@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:spotube/provider/audio_player/audio_player.dart';
-import 'package:spotube/services/audio_player/audio_player.dart';
+import 'package:etgmusic/provider/audio_player/audio_player.dart';
+import 'package:etgmusic/services/audio_player/audio_player.dart';
 import 'package:media_kit/media_kit.dart' hide Track;
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';

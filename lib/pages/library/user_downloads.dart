@@ -2,9 +2,9 @@ import 'package:auto_size_text/auto_size_text.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
-import 'package:spotube/modules/library/user_downloads/download_item.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/provider/download_manager_provider.dart';
+import 'package:etgmusic/modules/library/user_downloads/download_item.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/provider/download_manager_provider.dart';
 import 'package:auto_route/auto_route.dart';
 
 @RoutePage()

@@ -6,15 +6,15 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 import 'package:html/dom.dart' hide Text;
 import 'package:shadcn_flutter/shadcn_flutter.dart' hide Element;
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/pages/library/user_local_tracks/user_local_tracks.dart';
-import 'package:spotube/modules/root/update_dialog.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/pages/library/user_local_tracks/user_local_tracks.dart';
+import 'package:etgmusic/modules/root/update_dialog.dart';
 
-import 'package:spotube/provider/database/database.dart';
-import 'package:spotube/services/dio/dio.dart';
-import 'package:spotube/services/logger/logger.dart';
+import 'package:etgmusic/provider/database/database.dart';
+import 'package:etgmusic/services/dio/dio.dart';
+import 'package:etgmusic/services/logger/logger.dart';
 
-import 'package:spotube/utils/primitive_utils.dart';
+import 'package:etgmusic/utils/primitive_utils.dart';
 import 'package:collection/collection.dart';
 import 'package:html/parser.dart' as parser;
 
@@ -22,7 +22,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:spotube/collections/env.dart';
+import 'package:etgmusic/collections/env.dart';
 
 import 'package:version/version.dart';
 
@@ -244,7 +244,7 @@ abstract class ServiceUtils {
     if (Env.releaseChannel == ReleaseChannel.nightly) {
       final value = await globalDio.getUri(
         Uri.parse(
-          "https://api.github.com/repos/KRTirtho/spotube/actions/workflows/spotube-release-binary.yml/runs?status=success&per_page=1",
+          "https://api.github.com/repos/qwulise1/ETGmusic/actions/workflows/build_apk.yml/runs?status=success&per_page=1",
         ),
         options: Options(
           responseType: ResponseType.json,
@@ -268,10 +268,11 @@ abstract class ServiceUtils {
     } else {
       final value = await globalDio.getUri(
         Uri.parse(
-          "https://api.github.com/repos/KRTirtho/spotube/releases/latest",
+          "https://api.github.com/repos/qwulise1/ETGmusic/releases/tags/latest",
         ),
       );
       final tagName = (value.data["tag_name"] as String).replaceAll("v", "");
+      if (tagName == "latest") return;
       final currentVersion = packageInfo.version == "Unknown"
           ? null
           : Version.parse(packageInfo.version);

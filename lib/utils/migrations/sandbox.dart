@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:spotube/services/logger/logger.dart';
-import 'package:spotube/utils/platform.dart';
+import 'package:etgmusic/services/logger/logger.dart';
+import 'package:etgmusic/utils/platform.dart';
 
 /// Migrates sandbox files on macOS to non-sandbox directories
 Future<void> migrateMacOsFromSandboxToNoSandbox() async {
@@ -11,7 +11,7 @@ Future<void> migrateMacOsFromSandboxToNoSandbox() async {
 
   try {
     final sandboxApplicationSupportDir = Directory(
-      "/Users/${Platform.environment["USER"]}/Library/Containers/oss.krtirtho.spotube/Data/Library/Application Support/oss.krtirtho.spotube",
+      "/Users/${Platform.environment["USER"]}/Library/Containers/oss.krtirtho.etgmusic/Data/Library/Application Support/oss.krtirtho.etgmusic",
     );
 
     if (!await sandboxApplicationSupportDir.exists()) {

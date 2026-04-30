@@ -1,14 +1,14 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
-import 'package:spotube/collections/routes.gr.dart';
-import 'package:spotube/components/fallbacks/error_box.dart';
-import 'package:spotube/components/fallbacks/no_default_metadata_plugin.dart';
-import 'package:spotube/components/horizontal_playbutton_card_view/horizontal_playbutton_card_view.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/provider/metadata_plugin/browse/sections.dart';
-import 'package:spotube/provider/metadata_plugin/utils/common.dart';
-import 'package:spotube/services/metadata/errors/exceptions.dart';
+import 'package:etgmusic/collections/routes.gr.dart';
+import 'package:etgmusic/components/fallbacks/error_box.dart';
+import 'package:etgmusic/components/fallbacks/no_default_metadata_plugin.dart';
+import 'package:etgmusic/components/horizontal_playbutton_card_view/horizontal_playbutton_card_view.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/provider/metadata_plugin/browse/sections.dart';
+import 'package:etgmusic/provider/metadata_plugin/utils/common.dart';
+import 'package:etgmusic/services/metadata/errors/exceptions.dart';
 import 'package:very_good_infinite_list/very_good_infinite_list.dart';
 import 'package:flutter_undraw/flutter_undraw.dart';
 

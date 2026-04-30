@@ -1,7 +1,7 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/provider/metadata_plugin/utils/paginated.dart';
-import 'package:spotube/services/dio/dio.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/provider/metadata_plugin/utils/paginated.dart';
+import 'package:etgmusic/services/dio/dio.dart';
 
 class MetadataPluginRepositoriesNotifier
     extends PaginatedAsyncNotifier<MetadataPluginRepository> {

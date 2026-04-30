@@ -1,16 +1,16 @@
 import 'dart:io';
 
 import 'package:media_kit/media_kit.dart' hide Track;
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/services/logger/logger.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/services/logger/logger.dart';
 import 'package:flutter/foundation.dart';
-import 'package:spotube/services/audio_player/custom_player.dart';
+import 'package:etgmusic/services/audio_player/custom_player.dart';
 import 'dart:async';
 
 import 'package:media_kit/media_kit.dart' as mk;
 
-import 'package:spotube/services/audio_player/playback_state.dart';
-import 'package:spotube/utils/platform.dart';
+import 'package:etgmusic/services/audio_player/playback_state.dart';
+import 'package:etgmusic/utils/platform.dart';
 
 part 'audio_players_streams_mixin.dart';
 part 'audio_player_impl.dart';
@@ -47,7 +47,7 @@ abstract class AudioPlayerInterface {
   AudioPlayerInterface()
       : _mkPlayer = CustomPlayer(
           configuration: const mk.PlayerConfiguration(
-            title: "Spotube",
+            title: "ETGmusic",
             logLevel: kDebugMode ? mk.MPVLogLevel.info : mk.MPVLogLevel.error,
             async: true,
           ),

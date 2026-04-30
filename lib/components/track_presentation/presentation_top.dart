@@ -3,15 +3,15 @@ import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:shadcn_flutter/shadcn_flutter_extension.dart';
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/components/heart_button/heart_button.dart';
-import 'package:spotube/components/image/universal_image.dart';
-import 'package:spotube/components/track_presentation/presentation_props.dart';
-import 'package:spotube/components/track_presentation/use_action_callbacks.dart';
-import 'package:spotube/components/track_presentation/use_is_user_playlist.dart';
-import 'package:spotube/extensions/constrains.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/modules/playlist/playlist_create_dialog.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/components/heart_button/heart_button.dart';
+import 'package:etgmusic/components/image/universal_image.dart';
+import 'package:etgmusic/components/track_presentation/presentation_props.dart';
+import 'package:etgmusic/components/track_presentation/use_action_callbacks.dart';
+import 'package:etgmusic/components/track_presentation/use_is_user_playlist.dart';
+import 'package:etgmusic/extensions/constrains.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/modules/playlist/playlist_create_dialog.dart';
 
 class TrackPresentationTopSection extends HookConsumerWidget {
   const TrackPresentationTopSection({super.key});

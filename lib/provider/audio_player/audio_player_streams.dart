@@ -2,20 +2,20 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/provider/audio_player/audio_player.dart';
-import 'package:spotube/provider/audio_player/state.dart';
-import 'package:spotube/provider/discord_provider.dart';
-import 'package:spotube/provider/history/history.dart';
-import 'package:spotube/provider/metadata_plugin/core/scrobble.dart';
-import 'package:spotube/provider/metadata_plugin/metadata_plugin_provider.dart';
-import 'package:spotube/provider/server/sourced_track_provider.dart';
-import 'package:spotube/provider/skip_segments/skip_segments.dart';
-import 'package:spotube/provider/scrobbler/scrobbler.dart';
-import 'package:spotube/provider/user_preferences/user_preferences_provider.dart';
-import 'package:spotube/services/audio_player/audio_player.dart';
-import 'package:spotube/services/audio_services/audio_services.dart';
-import 'package:spotube/services/logger/logger.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/provider/audio_player/audio_player.dart';
+import 'package:etgmusic/provider/audio_player/state.dart';
+import 'package:etgmusic/provider/discord_provider.dart';
+import 'package:etgmusic/provider/history/history.dart';
+import 'package:etgmusic/provider/metadata_plugin/core/scrobble.dart';
+import 'package:etgmusic/provider/metadata_plugin/metadata_plugin_provider.dart';
+import 'package:etgmusic/provider/server/sourced_track_provider.dart';
+import 'package:etgmusic/provider/skip_segments/skip_segments.dart';
+import 'package:etgmusic/provider/scrobbler/scrobbler.dart';
+import 'package:etgmusic/provider/user_preferences/user_preferences_provider.dart';
+import 'package:etgmusic/services/audio_player/audio_player.dart';
+import 'package:etgmusic/services/audio_services/audio_services.dart';
+import 'package:etgmusic/services/logger/logger.dart';
 
 class AudioPlayerStreamListeners {
   final Ref ref;

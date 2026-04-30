@@ -3,18 +3,18 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
-import 'package:spotube/collections/routes.gr.dart';
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/models/database/database.dart';
-import 'package:spotube/modules/connect/connect_device.dart';
-import 'package:spotube/modules/home/sections/featured.dart';
-import 'package:spotube/modules/home/sections/sections.dart';
-import 'package:spotube/modules/home/sections/new_releases.dart';
-import 'package:spotube/modules/home/sections/recent.dart';
-import 'package:spotube/components/titlebar/titlebar.dart';
-import 'package:spotube/extensions/constrains.dart';
-import 'package:spotube/provider/user_preferences/user_preferences_provider.dart';
-import 'package:spotube/utils/platform.dart';
+import 'package:etgmusic/collections/routes.gr.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/models/database/database.dart';
+import 'package:etgmusic/modules/connect/connect_device.dart';
+import 'package:etgmusic/modules/home/sections/featured.dart';
+import 'package:etgmusic/modules/home/sections/sections.dart';
+import 'package:etgmusic/modules/home/sections/new_releases.dart';
+import 'package:etgmusic/modules/home/sections/recent.dart';
+import 'package:etgmusic/components/titlebar/titlebar.dart';
+import 'package:etgmusic/extensions/constrains.dart';
+import 'package:etgmusic/provider/user_preferences/user_preferences_provider.dart';
+import 'package:etgmusic/utils/platform.dart';
 
 @RoutePage()
 class HomePage extends HookConsumerWidget {

@@ -1,8 +1,8 @@
 import 'package:auto_route/annotations.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
-import 'package:spotube/modules/player/player_queue.dart';
-import 'package:spotube/provider/audio_player/audio_player.dart';
+import 'package:etgmusic/modules/player/player_queue.dart';
+import 'package:etgmusic/provider/audio_player/audio_player.dart';
 
 @RoutePage()
 class PlayerQueuePage extends HookConsumerWidget {

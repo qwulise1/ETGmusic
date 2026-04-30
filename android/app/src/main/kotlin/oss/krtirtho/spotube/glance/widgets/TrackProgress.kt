@@ -1,4 +1,4 @@
-package oss.krtirtho.spotube.glance.widgets
+package io.qwulise1.etgmusic.glance.widgets
 
 import android.content.SharedPreferences
 import androidx.compose.runtime.Composable
@@ -17,7 +17,7 @@ import androidx.glance.text.TextStyle
 import kotlin.math.max
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
-import oss.krtirtho.spotube.glance.Breakpoints
+import io.qwulise1.etgmusic.glance.Breakpoints
 
 fun Duration.format(): String {
   return this.toComponents { hour, minutes, seconds, nanoseconds ->

@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/provider/metadata_plugin/library/playlists.dart';
-import 'package:spotube/provider/metadata_plugin/metadata_plugin_provider.dart';
-import 'package:spotube/provider/metadata_plugin/core/user.dart';
-import 'package:spotube/provider/metadata_plugin/utils/common.dart';
-import 'package:spotube/services/metadata/errors/exceptions.dart';
-import 'package:spotube/services/metadata/metadata.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/provider/metadata_plugin/library/playlists.dart';
+import 'package:etgmusic/provider/metadata_plugin/metadata_plugin_provider.dart';
+import 'package:etgmusic/provider/metadata_plugin/core/user.dart';
+import 'package:etgmusic/provider/metadata_plugin/utils/common.dart';
+import 'package:etgmusic/services/metadata/errors/exceptions.dart';
+import 'package:etgmusic/services/metadata/metadata.dart';
 
 class MetadataPluginPlaylistNotifier
     extends AutoDisposeFamilyAsyncNotifier<SpotubeFullPlaylistObject, String> {

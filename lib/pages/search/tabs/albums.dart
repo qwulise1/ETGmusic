@@ -1,13 +1,13 @@
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
-import 'package:spotube/collections/fake.dart';
-import 'package:spotube/components/fallbacks/error_box.dart';
-import 'package:spotube/components/playbutton_view/playbutton_view.dart';
-import 'package:spotube/modules/album/album_card.dart';
-import 'package:spotube/modules/search/loading.dart';
-import 'package:spotube/pages/search/search.dart';
-import 'package:spotube/provider/metadata_plugin/search/albums.dart';
+import 'package:etgmusic/collections/fake.dart';
+import 'package:etgmusic/components/fallbacks/error_box.dart';
+import 'package:etgmusic/components/playbutton_view/playbutton_view.dart';
+import 'package:etgmusic/modules/album/album_card.dart';
+import 'package:etgmusic/modules/search/loading.dart';
+import 'package:etgmusic/pages/search/search.dart';
+import 'package:etgmusic/provider/metadata_plugin/search/albums.dart';
 
 class SearchPageAlbumsTab extends HookConsumerWidget {
   const SearchPageAlbumsTab({super.key});

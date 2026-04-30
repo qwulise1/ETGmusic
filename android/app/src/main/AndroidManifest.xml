@@ -102,7 +102,7 @@
 
     <!--  Home Widget config  -->
     <receiver
-      android:name="oss.krtirtho.spotube.glance.HomePlayerWidgetReceiver"
+      android:name="io.qwulise1.etgmusic.glance.HomePlayerWidgetReceiver"
       android:exported="true">
       <intent-filter>
         <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />

@@ -1,10 +1,10 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
-import 'package:spotube/components/horizontal_playbutton_card_view/horizontal_playbutton_card_view.dart';
-import 'package:spotube/extensions/context.dart';
-import 'package:spotube/pages/search/search.dart';
-import 'package:spotube/provider/metadata_plugin/search/all.dart';
+import 'package:etgmusic/components/horizontal_playbutton_card_view/horizontal_playbutton_card_view.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/pages/search/search.dart';
+import 'package:etgmusic/provider/metadata_plugin/search/all.dart';
 
 class SearchAlbumsSection extends HookConsumerWidget {
   const SearchAlbumsSection({

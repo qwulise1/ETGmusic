@@ -1,6 +1,6 @@
 {
-    "name": "spotube",
-    "short_name": "spotube",
+    "name": "etgmusic",
+    "short_name": "etgmusic",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

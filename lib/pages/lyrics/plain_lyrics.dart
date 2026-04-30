@@ -4,15 +4,15 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:palette_generator/palette_generator.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:shadcn_flutter/shadcn_flutter_extension.dart';
-import 'package:spotube/collections/spotube_icons.dart';
-import 'package:spotube/models/metadata/metadata.dart';
-import 'package:spotube/modules/lyrics/zoom_controls.dart';
-import 'package:spotube/components/shimmers/shimmer_lyrics.dart';
-import 'package:spotube/extensions/constrains.dart';
-import 'package:spotube/extensions/context.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/models/metadata/metadata.dart';
+import 'package:etgmusic/modules/lyrics/zoom_controls.dart';
+import 'package:etgmusic/components/shimmers/shimmer_lyrics.dart';
+import 'package:etgmusic/extensions/constrains.dart';
+import 'package:etgmusic/extensions/context.dart';
 
-import 'package:spotube/provider/audio_player/audio_player.dart';
-import 'package:spotube/provider/lyrics/synced.dart';
+import 'package:etgmusic/provider/audio_player/audio_player.dart';
+import 'package:etgmusic/provider/lyrics/synced.dart';
 
 class PlainLyrics extends HookConsumerWidget {
   final PaletteColor palette;
