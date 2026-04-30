@@ -52,7 +52,9 @@ class TelegramMediaService {
   }
 
   Future<List<SpotubeFullTrackObject>> loadTracks() async {
-    return _readStoredTracks().map((track) => track.toMetadata()).toList();
+    return (await _readStoredTracks())
+        .map((track) => track.toMetadata())
+        .toList();
   }
 
   Future<SpotubeFullTrackObject?> findTrack(String id) async {
