@@ -105,30 +105,6 @@ class AboutSpotubePage extends HookConsumerWidget {
                               ),
                             ],
                           ),
-                          TableRow(
-                            cells: [
-                              TableCell(child: Text(context.l10n.repository)),
-                              colon,
-                              const TableCell(
-                                child: Hyperlink(
-                                  "github.com/qwulise1/ETGmusic",
-                                  "https://github.com/qwulise1/ETGmusic",
-                                ),
-                              ),
-                            ],
-                          ),
-                          TableRow(
-                            cells: [
-                              TableCell(child: Text(context.l10n.license)),
-                              colon,
-                              const TableCell(
-                                child: Hyperlink(
-                                  "BSD-4-Clause",
-                                  "https://raw.githubusercontent.com/KRTirtho/spotube/master/LICENSE",
-                                ),
-                              ),
-                            ],
-                          ),
                         ],
                       ),
                     ],

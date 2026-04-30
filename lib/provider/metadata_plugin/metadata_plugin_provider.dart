@@ -16,6 +16,8 @@ import 'package:etgmusic/services/dio/dio.dart';
 import 'package:etgmusic/services/logger/logger.dart';
 import 'package:etgmusic/services/metadata/errors/exceptions.dart';
 import 'package:etgmusic/services/metadata/metadata.dart';
+import 'package:etgmusic/services/metadata/native/telegram_metadata_plugin.dart';
+import 'package:etgmusic/provider/telegram/telegram_auth.dart';
 import 'package:etgmusic/utils/service_utils.dart';
 import 'package:archive/archive.dart';
 import 'package:pub_semver/pub_semver.dart';
@@ -588,6 +590,11 @@ final metadataPluginsProvider =
 
 final metadataPluginProvider = FutureProvider<MetadataPlugin?>(
   (ref) async {
+    final telegramAuth = await ref.watch(telegramAuthProvider.future);
+    if (telegramAuth.isConnected) {
+      return createTelegramMetadataPlugin(ref, telegramAuth);
+    }
+
     final defaultPlugin = await ref.watch(
       metadataPluginsProvider
           .selectAsync((data) => data.defaultMetadataPluginConfig),

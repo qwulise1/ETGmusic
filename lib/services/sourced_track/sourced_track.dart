@@ -34,10 +34,43 @@ class SourcedTrack extends BasicSourcedTrack {
     required super.sources,
   });
 
+  factory SourcedTrack._fromTelegramDirect({
+    required Ref ref,
+    required SpotubeFullTrackObject query,
+  }) {
+    final info = SpotubeAudioSourceMatchObject(
+      id: query.id,
+      title: query.name,
+      artists: query.artists.map((artist) => artist.name).toList(),
+      duration: Duration(milliseconds: query.durationMs),
+      externalUri: query.externalUri,
+    );
+
+    return SourcedTrack(
+      ref: ref,
+      info: info,
+      query: query,
+      source: "telegram",
+      siblings: const [],
+      sources: [
+        SpotubeAudioSourceStreamObject(
+          url: query.externalUri,
+          container: _containerFromTelegramUrl(query.externalUri),
+          type: SpotubeMediaCompressionType.lossy,
+          bitrate: 192000.0,
+        ),
+      ],
+    );
+  }
+
   static Future<SourcedTrack> fetchFromTrack({
     required SpotubeFullTrackObject query,
     required Ref ref,
   }) async {
+    if (_isTelegramDirectTrack(query)) {
+      return SourcedTrack._fromTelegramDirect(ref: ref, query: query);
+    }
+
     final audioSource = await ref.read(audioSourcePluginProvider.future);
     final audioSourceConfig = await ref.read(metadataPluginsProvider
         .selectAsync((data) => data.defaultAudioSourcePluginConfig));
@@ -252,6 +285,10 @@ class SourcedTrack extends BasicSourcedTrack {
   }
 
   Future<SourcedTrack> refreshStream() async {
+    if (source == "telegram") {
+      return this;
+    }
+
     final audioSource = await ref.read(audioSourcePluginProvider.future);
     final audioSourceConfig = await ref.read(metadataPluginsProvider
         .selectAsync((data) => data.defaultAudioSourcePluginConfig));
@@ -299,6 +336,10 @@ class SourcedTrack extends BasicSourcedTrack {
   }
 
   String? get url {
+    if (source == "telegram") {
+      return sources.firstOrNull?.url;
+    }
+
     final preferences = ref.read(audioSourcePresetsProvider);
 
     return getUrlOfQuality(
@@ -371,4 +412,19 @@ class SourcedTrack extends BasicSourcedTrack {
     return presetState.presets
         .elementAtOrNull(presetState.selectedStreamingContainerIndex);
   }
+}
+
+bool _isTelegramDirectTrack(SpotubeFullTrackObject track) {
+  return track.id.startsWith("telegram:") &&
+      track.externalUri.startsWith("https://api.telegram.org/file/bot");
+}
+
+String _containerFromTelegramUrl(String url) {
+  final path = Uri.tryParse(url)?.path.toLowerCase() ?? url.toLowerCase();
+  if (path.endsWith(".mp3")) return "mp3";
+  if (path.endsWith(".m4a") || path.endsWith(".mp4")) return "mp4";
+  if (path.endsWith(".ogg") || path.endsWith(".opus")) return "ogg";
+  if (path.endsWith(".flac")) return "flac";
+  if (path.endsWith(".wav")) return "wav";
+  return "mp4";
 }

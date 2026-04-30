@@ -1,5 +1,5 @@
 import 'package:auto_route/auto_route.dart';
-import 'package:flutter/material.dart' show ListTile;
+import 'package:flutter/material.dart' show ListTile, Wrap;
 
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -11,6 +11,7 @@ import 'package:etgmusic/modules/settings/section_card_with_heading.dart';
 import 'package:etgmusic/extensions/context.dart';
 import 'package:etgmusic/provider/scrobbler/scrobbler.dart';
 import 'package:etgmusic/provider/telegram/telegram_auth.dart';
+import 'package:etgmusic/services/telegram/telegram_media.dart';
 
 class SettingsAccountSection extends HookConsumerWidget {
   const SettingsAccountSection({super.key});
@@ -63,8 +64,20 @@ class TelegramAccountTile extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(telegramAuthProvider);
+    final filters = ref.watch(telegramSourceFiltersProvider);
+    final tracks = ref.watch(telegramMediaTracksProvider);
     final tokenController = useTextEditingController();
+    final sourcesController = useTextEditingController();
     final showToken = useState(false);
+    final syncing = useState(false);
+
+    useEffect(() {
+      final value = filters.asData?.value;
+      if (value != null && sourcesController.text.isEmpty) {
+        sourcesController.text = value.join("\n");
+      }
+      return null;
+    }, [filters.asData?.value.join("\n")]);
 
     Future<void> connect() async {
       try {
@@ -84,6 +97,32 @@ class TelegramAccountTile extends HookConsumerWidget {
       await ref.read(telegramAuthProvider.notifier).disconnect();
       if (!context.mounted) return;
       _showTelegramToast(context, "Telegram отключен");
+    }
+
+    Future<void> saveSources() async {
+      await ref
+          .read(telegramMediaServiceProvider)
+          .setSourceFiltersFromText(sourcesController.text);
+      if (!context.mounted) return;
+      _showTelegramToast(context, "Источники Telegram сохранены");
+    }
+
+    Future<void> syncTelegram() async {
+      try {
+        syncing.value = true;
+        final result =
+            await ref.read(telegramMediaServiceProvider).syncBotUpdates();
+        if (!context.mounted) return;
+        _showTelegramToast(
+          context,
+          "Синхронизация: +${result.added}, всего ${result.total}",
+        );
+      } catch (e) {
+        if (!context.mounted) return;
+        _showTelegramToast(context, e.toString(), error: true);
+      } finally {
+        syncing.value = false;
+      }
     }
 
     final value = auth.asData?.value ?? const TelegramAuthState();
@@ -143,8 +182,9 @@ class TelegramAccountTile extends HookConsumerWidget {
                 ),
               ],
             ),
-            Row(
+            Wrap(
               spacing: 10,
+              runSpacing: 10,
               children: [
                 Button.primary(
                   enabled: !loading,
@@ -166,6 +206,48 @@ class TelegramAccountTile extends HookConsumerWidget {
                   ),
                 ),
               ],
+            ),
+          ],
+          if (value.isConnected) ...[
+            TextField(
+              controller: sourcesController,
+              placeholder: const Text(
+                "Источники: @channel, -1001234567890, название группы",
+              ),
+            ),
+            Row(
+              spacing: 10,
+              children: [
+                Button.secondary(
+                  enabled: !loading,
+                  onPressed: saveSources,
+                  leading: const Icon(SpotubeIcons.save),
+                  child: const Text("Сохранить источники"),
+                ),
+                Button.primary(
+                  enabled: !syncing.value,
+                  onPressed: syncTelegram,
+                  leading: syncing.value
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(SpotubeIcons.refresh),
+                  child: const Text("Синхронизировать"),
+                ),
+              ],
+            ),
+            Text(
+              "В библиотеке Telegram: ${tracks.asData?.value.length ?? 0}. Если поле источников пустое, берутся все каналы и группы, где бот видит новые аудио.",
+              style: context.theme.typography.xSmall.copyWith(
+                color: context.theme.colorScheme.mutedForeground,
+              ),
+            ),
+            Text(
+              "Bot API не выгружает старую историю канала. Для старых треков перешли их заново после добавления бота или используй будущий MTProto-вход через пользовательскую сессию.",
+              style: context.theme.typography.xSmall.copyWith(
+                color: context.theme.colorScheme.mutedForeground,
+              ),
             ),
           ],
           if (auth.hasError)

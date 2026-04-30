@@ -151,31 +151,42 @@ class MetadataPlugin {
     return MetadataPlugin._(hetu);
   }
 
-  final Hetu hetu;
+  final Hetu? hetu;
 
-  late final MetadataAuthEndpoint auth;
+  final dynamic auth;
+  final dynamic audioSource;
+  final dynamic album;
+  final dynamic artist;
+  final dynamic browse;
+  final dynamic search;
+  final dynamic playlist;
+  final dynamic track;
+  final dynamic user;
+  final dynamic core;
 
-  late final MetadataPluginAudioSourceEndpoint audioSource;
-  late final MetadataPluginAlbumEndpoint album;
-  late final MetadataPluginArtistEndpoint artist;
-  late final MetadataPluginBrowseEndpoint browse;
-  late final MetadataPluginSearchEndpoint search;
-  late final MetadataPluginPlaylistEndpoint playlist;
-  late final MetadataPluginTrackEndpoint track;
-  late final MetadataPluginUserEndpoint user;
-  late final MetadataPluginCore core;
+  MetadataPlugin.native({
+    required this.auth,
+    required this.audioSource,
+    required this.album,
+    required this.artist,
+    required this.browse,
+    required this.search,
+    required this.playlist,
+    required this.track,
+    required this.user,
+    required this.core,
+  }) : hetu = null;
 
-  MetadataPlugin._(this.hetu) {
-    auth = MetadataAuthEndpoint(hetu);
-
-    audioSource = MetadataPluginAudioSourceEndpoint(hetu);
-    artist = MetadataPluginArtistEndpoint(hetu);
-    album = MetadataPluginAlbumEndpoint(hetu);
-    browse = MetadataPluginBrowseEndpoint(hetu);
-    search = MetadataPluginSearchEndpoint(hetu);
-    playlist = MetadataPluginPlaylistEndpoint(hetu);
-    track = MetadataPluginTrackEndpoint(hetu);
-    user = MetadataPluginUserEndpoint(hetu);
-    core = MetadataPluginCore(hetu);
-  }
+  MetadataPlugin._(Hetu value)
+      : hetu = value,
+        auth = MetadataAuthEndpoint(value),
+        audioSource = MetadataPluginAudioSourceEndpoint(value),
+        artist = MetadataPluginArtistEndpoint(value),
+        album = MetadataPluginAlbumEndpoint(value),
+        browse = MetadataPluginBrowseEndpoint(value),
+        search = MetadataPluginSearchEndpoint(value),
+        playlist = MetadataPluginPlaylistEndpoint(value),
+        track = MetadataPluginTrackEndpoint(value),
+        user = MetadataPluginUserEndpoint(value),
+        core = MetadataPluginCore(value);
 }

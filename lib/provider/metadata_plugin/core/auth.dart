@@ -3,10 +3,16 @@ import 'dart:async';
 import 'package:riverpod/riverpod.dart';
 import 'package:etgmusic/models/metadata/metadata.dart';
 import 'package:etgmusic/provider/metadata_plugin/metadata_plugin_provider.dart';
+import 'package:etgmusic/provider/telegram/telegram_auth.dart';
 
 class MetadataPluginAuthenticatedNotifier extends AsyncNotifier<bool> {
   @override
   FutureOr<bool> build() async {
+    final telegramAuth = await ref.watch(telegramAuthProvider.future);
+    if (telegramAuth.isConnected) {
+      return true;
+    }
+
     final defaultPluginConfig = ref.watch(metadataPluginsProvider);
     if (defaultPluginConfig.asData?.value.defaultMetadataPluginConfig?.abilities
             .contains(PluginAbilities.authentication) !=
