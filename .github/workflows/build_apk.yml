@@ -87,14 +87,13 @@ jobs:
           name: ETGmusic-Spotube-release
           path: build/ci/apk/etgmusic-spotube-release.apk
 
-      - name: Publish latest artifacts branch
+      - name: Publish latest release
         if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          out_dir="$(mktemp -d)"
-          cp build/ci/apk/etgmusic-spotube-release.apk "$out_dir/etgmusic-spotube-release.apk"
-          cp build/ci/android-build.log "$out_dir/android-build.log"
-          cat > "$out_dir/README.txt" <<EOF
+          cat > build/ci/README.txt <<EOF
           ETGmusic Spotube-base Android build
           Commit: ${GITHUB_SHA}
           Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
@@ -106,11 +105,12 @@ jobs:
           - Spotube by Kingkor Roy Tirtho, BSD-4-Clause
           EOF
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout --orphan latest-artifacts
-          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-          cp -R "$out_dir"/. .
-          git add -A
-          git commit -m "Publish Spotube-base ETGmusic artifacts for ${GITHUB_SHA}"
-          git push --force origin latest-artifacts
+          gh release delete latest --yes --cleanup-tag >/dev/null 2>&1 || true
+          gh release create latest \
+            build/ci/apk/etgmusic-spotube-release.apk#etgmusic-spotube-release.apk \
+            build/ci/android-build.log#android-build.log \
+            build/ci/README.txt#README.txt \
+            --target "${GITHUB_SHA}" \
+            --title "ETGmusic latest Android build" \
+            --notes-file build/ci/README.txt \
+            --latest
