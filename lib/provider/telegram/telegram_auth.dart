@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:riverpod/riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:etgmusic/services/dio/dio.dart';
 import 'package:etgmusic/services/kv_store/encrypted_kv_store.dart';
 import 'package:etgmusic/services/kv_store/kv_store.dart';
@@ -64,8 +64,8 @@ class TelegramAuthNotifier extends AsyncNotifier<TelegramAuthState> {
       throw ArgumentError("Вставь Bot API token из @BotFather");
     }
 
-    state = const AsyncValue.loading();
-    final result = await AsyncValue.guard(() async {
+    state = const AsyncLoading();
+    try {
       final bot = await _verifyBotToken(token);
       final next = TelegramAuthState(
         mode: TelegramAuthMode.bot,
@@ -77,34 +77,28 @@ class TelegramAuthNotifier extends AsyncNotifier<TelegramAuthState> {
 
       await _writeToken(token);
       await _writeState(next);
-      return next;
-    });
-    state = result;
-    if (result.hasError) {
-      Error.throwWithStackTrace(
-        result.error!,
-        result.stackTrace ?? StackTrace.current,
-      );
+
+      state = AsyncData(next);
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      Error.throwWithStackTrace(error, stackTrace);
     }
   }
 
   Future<void> disconnect() async {
-    state = const AsyncValue.loading();
-    final result = await AsyncValue.guard(() async {
+    state = const AsyncLoading();
+    try {
       await _deleteToken();
       await KVStoreService.sharedPreferences.remove(_modeKey);
       await KVStoreService.sharedPreferences.remove(_botIdKey);
       await KVStoreService.sharedPreferences.remove(_botUsernameKey);
       await KVStoreService.sharedPreferences.remove(_botNameKey);
       await KVStoreService.sharedPreferences.remove(_connectedAtKey);
-      return const TelegramAuthState();
-    });
-    state = result;
-    if (result.hasError) {
-      Error.throwWithStackTrace(
-        result.error!,
-        result.stackTrace ?? StackTrace.current,
-      );
+
+      state = const AsyncData(TelegramAuthState());
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      Error.throwWithStackTrace(error, stackTrace);
     }
   }
 

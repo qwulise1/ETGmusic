@@ -57,11 +57,18 @@ jobs:
 
       - name: Build stable APK
         run: |
-          set -euo pipefail
+          set -uo pipefail
           mkdir -p build/ci
-          {
-            flutter build apk --flavor stable --release --target-platform android-arm,android-arm64,android-x64
-          } 2>&1 | tee build/ci/android-build.log
+          flutter build apk --flavor stable --release --target-platform android-arm,android-arm64,android-x64 \
+            2>&1 | tee build/ci/android-build.log
+          status="${PIPESTATUS[0]}"
+          if [ "$status" -ne 0 ]; then
+            {
+              echo "----- Android build failed: tail -----"
+              tail -n 120 build/ci/android-build.log
+            } >&2
+            exit "$status"
+          fi
 
       - name: Collect APK
         if: success()
@@ -79,6 +86,30 @@ jobs:
           name: android-build-log
           path: build/ci/android-build.log
           if-no-files-found: warn
+
+      - name: Publish failed build log
+        if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ ! -f build/ci/android-build.log ]; then
+            mkdir -p build/ci
+            echo "Build log was not produced" > build/ci/android-build.log
+          fi
+          cat > build/ci/FAILED_README.txt <<EOF
+          ETGmusic failed Android build log
+          Commit: ${GITHUB_SHA}
+          Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          EOF
+
+          gh release delete ci-log --yes --cleanup-tag >/dev/null 2>&1 || true
+          gh release create ci-log \
+            build/ci/android-build.log#android-build.log \
+            build/ci/FAILED_README.txt#README.txt \
+            --target "${GITHUB_SHA}" \
+            --title "ETGmusic failed Android build log" \
+            --notes-file build/ci/FAILED_README.txt
 
       - name: Upload release APK
         if: success()
