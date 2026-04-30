@@ -24,7 +24,7 @@ class SystemTrayManager with TrayListener {
         kIsWindows
             ? 'assets/branding/etgmusic-logo.ico'
             : kIsFlatpak
-                ? 'com.github.KRTirtho.ETGmusic'
+                ? 'io.qwulise1.etgmusic'
                 : 'assets/branding/etgmusic-logo.png',
       );
       trayManager.addListener(this);

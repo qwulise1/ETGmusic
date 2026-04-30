@@ -1,11 +1,11 @@
 icon: assets/branding/etgmusic-logo.png
-summary: Lightweight cross-platform music client
+summary: Telegram-first ETGmusic player
 group: Applications/Multimedia
-vendor: Kingkor Roy Tirtho
-packager: Kingkor Roy Tirtho
-packagerEmail: krtirtho@gmail.com
+vendor: qwulise
+packager: qwulise
+packagerEmail: qwulise@users.noreply.github.com
 license: BSD-4-Clause
-url: https://github.com/KRTirtho/etgmusic
+url: https://github.com/qwulise1/ETGmusic
 requires:
   - mpv
   - libappindicator

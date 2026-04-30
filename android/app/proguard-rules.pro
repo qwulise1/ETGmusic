@@ -10,7 +10,7 @@
 -keep class androidx.lifecycle.DefaultLifecycleObserver
 
 -keepnames class kotlinx.serialization.** { *; }
--keepnames class oss.krtirtho.spotube.glance.models.** { *; }
+-keepnames class io.qwulise1.etgmusic.glance.models.** { *; }
 -keep @kotlinx.serialization.Serializable class *
 -keepclassmembers class ** {
     @kotlinx.serialization.* <fields>;

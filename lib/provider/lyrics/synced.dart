@@ -37,7 +37,7 @@ class SyncedLyricsNotifier
       options: Options(
         headers: {
           "User-Agent":
-              "ETGmusic v${packageInfo.version} (https://github.com/KRTirtho/spotube)"
+              "ETGmusic v${packageInfo.version} (https://github.com/qwulise1/ETGmusic)"
         },
         responseType: ResponseType.json,
       ),

@@ -1,6 +1,5 @@
 import 'package:flutter/services.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
-import 'package:etgmusic/collections/assets.gen.dart';
 import 'package:etgmusic/collections/env.dart';
 import 'package:etgmusic/components/button/back_button.dart';
 import 'package:etgmusic/components/links/hyper_link.dart';
@@ -43,7 +42,8 @@ class AboutSpotubePage extends HookConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Column(
               children: [
-                Assets.branding.spotubeLogoPng.image(
+                Image.asset(
+                  "assets/branding/etgmusic-logo.png",
                   height: 200,
                   width: 200,
                 ),

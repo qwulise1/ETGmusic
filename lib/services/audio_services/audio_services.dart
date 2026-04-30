@@ -29,14 +29,14 @@ class AudioServices with WidgetsBindingObserver {
                 kIsLinux,
                 Env.releaseChannel
               )) {
-                (true, _) => "spotube",
-                (_, ReleaseChannel.stable) => "oss.krtirtho.spotube",
-                (_, ReleaseChannel.nightly) => "oss.krtirtho.spotube.nightly",
+                (true, _) => "etgmusic",
+                (_, ReleaseChannel.stable) => "io.qwulise1.etgmusic",
+                (_, ReleaseChannel.nightly) => "io.qwulise1.etgmusic.nightly",
               },
-              androidNotificationChannelName: 'Spotube',
+              androidNotificationChannelName: 'ETGmusic',
               androidNotificationOngoing: false,
               androidStopForegroundOnPause: false,
-              androidNotificationChannelDescription: "Spotube Media Controls",
+              androidNotificationChannelDescription: "ETGmusic Media Controls",
             ),
           )
         : null;

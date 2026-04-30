@@ -1,6 +1,5 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
-import 'package:etgmusic/collections/assets.gen.dart';
 import 'package:etgmusic/collections/spotube_icons.dart';
 import 'package:etgmusic/extensions/context.dart';
 import 'package:etgmusic/modules/getting_started/blur_card.dart';
@@ -17,7 +16,7 @@ class GettingStartedPageGreetingSection extends HookConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Assets.branding.spotubeLogoPng.image(height: 200),
+            Image.asset("assets/branding/etgmusic-logo.png", height: 200),
             const Gap(24),
             const Text("ETGmusic").semiBold().h4(),
             const Gap(4),

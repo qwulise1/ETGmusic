@@ -32,7 +32,7 @@ class ConnectClientsNotifier extends AsyncNotifier<ConnectClientsState> {
 
   @override
   build() async {
-    final discovery = BonsoirDiscovery(type: '_spotube._tcp');
+    final discovery = BonsoirDiscovery(type: '_etgmusic._tcp');
     final deviceId = await DeviceInfoService.instance.deviceId();
     await discovery.ready;
 
