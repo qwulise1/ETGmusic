@@ -13,8 +13,10 @@ import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Editable;
 import android.text.InputType;
 import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
@@ -80,11 +82,13 @@ public class MainActivity extends Activity {
     private EditText manualTitleInput;
     private EditText manualArtistInput;
     private EditText manualUrlInput;
+    private EditText librarySearchInput;
     private EditText albumNameInput;
     private EditText lyricsManualInput;
 
     private Theme theme = Theme.cyber();
     private String screen = "library";
+    private String libraryFilter = "";
     private MediaPlayer player;
     private int currentIndex = -1;
     private long sleepDeadlineMs = 0L;
@@ -140,8 +144,8 @@ public class MainActivity extends Activity {
 
         miniPlayer = new LinearLayout(this);
         miniPlayer.setOrientation(LinearLayout.VERTICAL);
-        miniPlayer.setPadding(dp(12), dp(10), dp(12), dp(10));
-        miniPlayer.setBackground(round(theme.nav, dp(28), theme.line, 1));
+        miniPlayer.setPadding(0, 0, 0, 0);
+        miniPlayer.setBackground(round(theme.card, dp(18), theme.line, 1));
         miniPlayer.setOnClickListener(v -> showPlayer());
 
         nav = new LinearLayout(this);
@@ -161,7 +165,7 @@ public class MainActivity extends Activity {
 
     private void renderNav() {
         nav.removeAllViews();
-        navButton("⌂", "Радар", () -> showLibrary());
+        navButton("⌂", "Дом", () -> showLibrary());
         navButton("≋", "Плеер", () -> showPlayer());
         navButton("▣", "Альбомы", () -> showAlbums());
         navButton("⚙", "Сетап", () -> showSettings());
@@ -198,9 +202,14 @@ public class MainActivity extends Activity {
         }
         miniPlayer.setVisibility(View.VISIBLE);
 
+        miniProgress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        miniProgress.setMax(1000);
+        miniPlayer.addView(miniProgress, new LinearLayout.LayoutParams(-1, dp(3)));
+
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(10), dp(8), dp(10), dp(8));
         row.addView(new ArtTile(this, track.title, theme.accent, theme.heroBottom), new LinearLayout.LayoutParams(dp(46), dp(46)));
 
         LinearLayout copy = new LinearLayout(this);
@@ -216,26 +225,42 @@ public class MainActivity extends Activity {
         play.setGravity(Gravity.CENTER);
         play.setBackground(round(theme.accent, dp(18), theme.accent, 0));
         play.setOnClickListener(v -> togglePlayback());
-        row.addView(play, new LinearLayout.LayoutParams(dp(42), dp(42)));
-        miniPlayer.addView(row);
+        row.addView(play, new LinearLayout.LayoutParams(dp(40), dp(40)));
 
-        miniProgress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        miniProgress.setMax(1000);
-        miniPlayer.addView(miniProgress, new LinearLayout.LayoutParams(-1, dp(8)));
+        TextView next = compact("›", theme.text, 20, true);
+        next.setGravity(Gravity.CENTER);
+        next.setOnClickListener(v -> playOffset(1));
+        row.addView(next, new LinearLayout.LayoutParams(dp(34), dp(40)));
+        miniPlayer.addView(row);
         syncProgress();
     }
 
     private void showLibrary() {
         clear("library");
-        hero("ETGmusic", "Твой Telegram-стриминг: каналы, боты, локальные альбомы, любимые и LRC-тексты в одном плеере.");
-
+        hero("ETGmusic", "Telegram streams, saved albums, lyrics and sleep timer.");
+        content.addView(searchPanel());
         content.addView(quickStats());
-        content.addView(sectionTitle("Подборки"));
+        content.addView(sectionTitle("Quick picks"));
         content.addView(discoveryShelf());
 
-        statusText = small("Готов. Добавь bot token, отскань источники или кинь прямую ссылку на трек.");
+        statusText = small("Готов. Добавь Telegram-источник или прямой URL. Поиск фильтрует локальную библиотеку.");
         content.addView(statusText);
 
+        content.addView(sectionTitle("Библиотека"));
+        LinearLayout list = card("");
+        int visible = 0;
+        for (int i = 0; i < tracks.size(); i++) {
+            if (matchesFilter(tracks.get(i))) {
+                list.addView(trackRow(i));
+                visible++;
+            }
+        }
+        if (visible == 0) {
+            list.addView(emptyState());
+        }
+        content.addView(list);
+
+        content.addView(sectionTitle("Источники"));
         LinearLayout auth = card("Telegram radar");
         auth.addView(label("Bot token"));
         botTokenInput = input("123456:ABC...", false);
@@ -262,17 +287,6 @@ public class MainActivity extends Activity {
         manual.addView(manualUrlInput);
         manual.addView(button("Добавить URL в библиотеку", v -> addManualTrack()));
         content.addView(manual);
-
-        content.addView(sectionTitle("Треки"));
-        LinearLayout list = card("");
-        if (tracks.isEmpty()) {
-            list.addView(emptyState());
-        } else {
-            for (int i = 0; i < tracks.size(); i++) {
-                list.addView(trackRow(i));
-            }
-        }
-        content.addView(list);
     }
 
     private void showPlayer() {
@@ -378,8 +392,8 @@ public class MainActivity extends Activity {
 
         LinearLayout themes = card("Темы");
         themes.addView(small("Каждая тема меняет не только цвет кнопки, а всю атмосферу плеера."));
-        themes.addView(row(button("Cyber", v -> setTheme("cyber")), button("Ice", v -> setTheme("ice")), button("Amber", v -> setTheme("amber"))));
-        themes.addView(row(button("Ruby", v -> setTheme("ruby")), button("Forest", v -> setTheme("forest")), button("Mono", v -> setTheme("mono"))));
+        themes.addView(row(button("Default", v -> setTheme("cyber")), button("Light", v -> setTheme("ice")), button("Amber", v -> setTheme("amber"))));
+        themes.addView(row(button("Ruby", v -> setTheme("ruby")), button("Forest", v -> setTheme("forest")), button("AMOLED", v -> setTheme("mono"))));
         content.addView(themes);
 
         LinearLayout proxy = card("Proxy");
@@ -896,20 +910,37 @@ public class MainActivity extends Activity {
 
     private void hero(String title, String subtitle) {
         LinearLayout hero = new LinearLayout(this);
-        hero.setOrientation(LinearLayout.HORIZONTAL);
-        hero.setGravity(Gravity.CENTER_VERTICAL);
-        hero.setPadding(dp(18), dp(18), dp(18), dp(18));
-        hero.setBackground(gradient(theme.heroTop, theme.heroBottom, dp(34)));
+        hero.setOrientation(LinearLayout.VERTICAL);
+        hero.setPadding(dp(4), dp(18), dp(4), dp(10));
+
+        LinearLayout top = new LinearLayout(this);
+        top.setOrientation(LinearLayout.HORIZONTAL);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+
         LinearLayout copy = new LinearLayout(this);
         copy.setOrientation(LinearLayout.VERTICAL);
-        TextView eyebrow = compact("ETG / STREAMING", theme.accent, 11, true);
+        TextView eyebrow = compact("qwulise music core", theme.accent, 11, true);
         TextView t = title(title);
         TextView s = small(subtitle);
         copy.addView(eyebrow);
         copy.addView(t);
         copy.addView(s);
-        hero.addView(copy, new LinearLayout.LayoutParams(0, -2, 1f));
-        hero.addView(new ArtTile(this, title, theme.accent, theme.heroBottom), new LinearLayout.LayoutParams(dp(86), dp(86)));
+        top.addView(copy, new LinearLayout.LayoutParams(0, -2, 1f));
+
+        TextView action = compact("EQ", theme.buttonText, 12, true);
+        action.setGravity(Gravity.CENTER);
+        action.setBackground(round(theme.accent, dp(18), theme.accent, 0));
+        action.setOnClickListener(v -> showSettings());
+        top.addView(action, new LinearLayout.LayoutParams(dp(44), dp(36)));
+        hero.addView(top);
+
+        LinearLayout mood = new LinearLayout(this);
+        mood.setOrientation(LinearLayout.HORIZONTAL);
+        mood.setPadding(0, dp(10), 0, 0);
+        mood.addView(infoChip("Quick picks"));
+        mood.addView(infoChip("Songs"));
+        mood.addView(infoChip("Albums"));
+        hero.addView(mood);
         content.addView(hero, withBottomMargin(new LinearLayout.LayoutParams(-1, -2), dp(12)));
     }
 
@@ -981,6 +1012,57 @@ public class MainActivity extends Activity {
         return view;
     }
 
+    private View searchPanel() {
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.HORIZONTAL);
+        panel.setGravity(Gravity.CENTER_VERTICAL);
+        panel.setPadding(dp(12), dp(8), dp(8), dp(8));
+        panel.setBackground(round(theme.input, dp(22), theme.line, 1));
+
+        TextView icon = compact("⌕", theme.accent, 20, true);
+        icon.setGravity(Gravity.CENTER);
+        panel.addView(icon, new LinearLayout.LayoutParams(dp(30), dp(42)));
+
+        librarySearchInput = input("Поиск по трекам, артистам, источникам", false);
+        librarySearchInput.setText(libraryFilter);
+        librarySearchInput.setSingleLine(true);
+        librarySearchInput.setBackgroundColor(Color.TRANSPARENT);
+        librarySearchInput.setPadding(dp(4), 0, dp(4), 0);
+        librarySearchInput.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                libraryFilter = s == null ? "" : s.toString();
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+            }
+        });
+        panel.addView(librarySearchInput, new LinearLayout.LayoutParams(0, dp(42), 1f));
+
+        TextView apply = compact("OK", theme.buttonText, 12, true);
+        apply.setGravity(Gravity.CENTER);
+        apply.setBackground(round(theme.accent, dp(17), theme.accent, 0));
+        apply.setOnClickListener(v -> showLibrary());
+        panel.addView(apply, new LinearLayout.LayoutParams(dp(44), dp(34)));
+
+        panel.setLayoutParams(withBottomMargin(new LinearLayout.LayoutParams(-1, -2), dp(12)));
+        return panel;
+    }
+
+    private boolean matchesFilter(Track track) {
+        String filter = libraryFilter == null ? "" : libraryFilter.trim().toLowerCase(Locale.ROOT);
+        if (filter.isEmpty()) return true;
+        return track.title.toLowerCase(Locale.ROOT).contains(filter)
+                || track.artist.toLowerCase(Locale.ROOT).contains(filter)
+                || track.source.toLowerCase(Locale.ROOT).contains(filter)
+                || track.url.toLowerCase(Locale.ROOT).contains(filter);
+    }
+
     private LinearLayout quickStats() {
         LinearLayout stats = new LinearLayout(this);
         stats.setOrientation(LinearLayout.HORIZONTAL);
@@ -1006,14 +1088,14 @@ public class MainActivity extends Activity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setPadding(0, 0, dp(2), 0);
-        row.addView(featureCard("TG", "Telegram radar", "Скан bot updates и каналов", () -> {
+        row.addView(featureCard("01", "Telegram radar", "Каналы, группы, bot updates", () -> {
             if (botTokenInput != null) botTokenInput.requestFocus();
         }));
-        row.addView(featureCard("URL", "Instant stream", "Кидай прямую ссылку на трек", () -> {
+        row.addView(featureCard("02", "Direct stream", "mp3, ogg, m4a по ссылке", () -> {
             if (manualUrlInput != null) manualUrlInput.requestFocus();
         }));
-        row.addView(featureCard("LRC", "Lyrics sync", "LRCLIB и свой текст", () -> showPlayer()));
-        row.addView(featureCard("ZZ", "Sleep timer", "15/30 минут без лишних экранов", () -> showPlayer()));
+        row.addView(featureCard("03", "Lyrics", "LRCLIB и ручной LRC", () -> showPlayer()));
+        row.addView(featureCard("04", "Sleep", "15/30 минут таймер", () -> showPlayer()));
         scroll.addView(row, new HorizontalScrollView.LayoutParams(-2, -2));
         scroll.setLayoutParams(withBottomMargin(new LinearLayout.LayoutParams(-1, -2), dp(12)));
         return scroll;
@@ -1023,13 +1105,13 @@ public class MainActivity extends Activity {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(14), dp(14), dp(14), dp(14));
-        card.setBackground(round(theme.row, dp(26), theme.line, 1));
+        card.setBackground(round(theme.card, dp(24), theme.line, 1));
         card.setOnClickListener(v -> action.run());
 
         TextView badge = compact(icon, theme.buttonText, 12, true);
         badge.setGravity(Gravity.CENTER);
-        badge.setBackground(round(theme.accent, dp(15), theme.accent, 0));
-        card.addView(badge, new LinearLayout.LayoutParams(dp(42), dp(30)));
+        badge.setBackground(round(theme.accent, dp(14), theme.accent, 0));
+        card.addView(badge, new LinearLayout.LayoutParams(dp(36), dp(28)));
         card.addView(compact(title, theme.text, 16, true));
 
         TextView sub = small(subtitle);
@@ -1037,7 +1119,7 @@ public class MainActivity extends Activity {
         sub.setEllipsize(TextUtils.TruncateAt.END);
         card.addView(sub);
 
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(178), dp(128));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(172), dp(116));
         lp.setMargins(0, 0, dp(10), 0);
         card.setLayoutParams(lp);
         return card;
@@ -1171,6 +1253,17 @@ public class MainActivity extends Activity {
         return view;
     }
 
+    private TextView infoChip(String text) {
+        TextView view = compact(text, theme.muted, 12, true);
+        view.setGravity(Gravity.CENTER);
+        view.setPadding(dp(12), 0, dp(12), 0);
+        view.setBackground(round(theme.row, dp(16), theme.line, 1));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, dp(32));
+        lp.setMargins(0, 0, dp(8), 0);
+        view.setLayoutParams(lp);
+        return view;
+    }
+
     private GradientDrawable gradient(int top, int bottom, int radius) {
         GradientDrawable drawable = new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{top, bottom});
         drawable.setCornerRadius(radius);
@@ -1209,20 +1302,20 @@ public class MainActivity extends Activity {
             int height = getHeight();
             paint.setStyle(Paint.Style.FILL);
 
-            paint.setColor(withAlpha(theme.heroTop, 120));
-            canvas.drawCircle(width * 0.15f, height * 0.08f, Math.max(width, height) * 0.22f, paint);
+            paint.setColor(withAlpha(theme.heroTop, 70));
+            canvas.drawCircle(width * 0.12f, height * 0.03f, Math.max(width, height) * 0.22f, paint);
 
-            paint.setColor(withAlpha(theme.accent, 62));
-            canvas.drawCircle(width * 0.9f, height * 0.18f, Math.max(width, height) * 0.18f, paint);
+            paint.setColor(withAlpha(theme.accent, 36));
+            canvas.drawCircle(width * 0.95f, height * 0.12f, Math.max(width, height) * 0.16f, paint);
 
-            paint.setColor(withAlpha(theme.heroBottom, 110));
+            paint.setColor(withAlpha(theme.heroBottom, 72));
             canvas.drawCircle(width * 0.78f, height * 0.82f, Math.max(width, height) * 0.24f, paint);
 
-            paint.setColor(withAlpha(theme.line, 90));
+            paint.setColor(withAlpha(theme.line, 42));
             paint.setStrokeWidth(dp(1));
-            for (int i = 0; i < 9; i++) {
-                float y = height * (0.18f + i * 0.08f);
-                canvas.drawLine(-dp(24), y, width + dp(24), y - dp(42), paint);
+            for (int i = 0; i < 8; i++) {
+                float y = height * (0.2f + i * 0.09f);
+                canvas.drawLine(dp(12), y, width - dp(12), y, paint);
             }
         }
     }
@@ -1272,8 +1365,9 @@ public class MainActivity extends Activity {
             paint.setStyle(Paint.Style.FILL);
             paint.setTypeface(Typeface.DEFAULT_BOLD);
             paint.setTextAlign(Paint.Align.CENTER);
-            paint.setTextSize(Math.max(dp(18), w * 0.22f));
-            canvas.drawText("♪", w * 0.5f, h * 0.44f, paint);
+            paint.setTextSize(Math.max(dp(18), w * 0.24f));
+            String initial = seed.trim().isEmpty() ? "E" : seed.trim().substring(0, 1).toUpperCase(Locale.ROOT);
+            canvas.drawText(initial, w * 0.5f, h * 0.45f, paint);
             paint.setTypeface(Typeface.DEFAULT);
         }
     }
@@ -1372,27 +1466,27 @@ public class MainActivity extends Activity {
         }
 
         static Theme cyber() {
-            return new Theme(c("#061018"), c("#02040A"), c("#07333B"), c("#0A1326"), c("#141A24"), c("#101722"), c("#0B111A"), c("#0C1119"), c("#070B12"), c("#F1FBFF"), c("#9AA8B7"), c("#607080"), c("#00E0A4"), c("#335B58"), c("#03100D"));
+            return new Theme(c("#16171D"), c("#101116"), c("#222534"), c("#1F2029"), c("#1F2029"), c("#2B2D3B"), c("#242632"), c("#1F2029"), c("#16171D"), c("#E1E1E2"), c("#A3A4A6"), c("#6F6F73"), c("#7C83FF"), c("#333645"), c("#FFFFFF"));
         }
 
         static Theme ice() {
-            return new Theme(c("#EAF7FF"), c("#D7E8FF"), c("#BFE5FF"), c("#F7FCFF"), c("#FFFFFF"), c("#EFF7FF"), c("#F7FBFF"), c("#F7FBFF"), c("#FFFFFF"), c("#07111E"), c("#46586A"), c("#7A8FA3"), c("#136DFF"), c("#B8D6FF"), c("#FFFFFF"));
+            return new Theme(c("#FDFDFE"), c("#F3F4FA"), c("#F8F8FC"), c("#EAEAF5"), c("#FFFFFF"), c("#F0F1F8"), c("#F7F7FC"), c("#FFFFFF"), c("#F8F8FC"), c("#212121"), c("#656566"), c("#9D9D9D"), c("#5055C0"), c("#DCDDFA"), c("#FFFFFF"));
         }
 
         static Theme amber() {
-            return new Theme(c("#170B04"), c("#070402"), c("#4B2508"), c("#1F0E04"), c("#21130A"), c("#2A180B"), c("#160C06"), c("#1A0F08"), c("#120905"), c("#FFF4E3"), c("#C4A88B"), c("#8B715A"), c("#FF9D2E"), c("#69401B"), c("#190B02"));
+            return new Theme(c("#18130D"), c("#0E0B08"), c("#2C2417"), c("#21190F"), c("#211A12"), c("#302515"), c("#251C11"), c("#211A12"), c("#171008"), c("#FFF1DB"), c("#C8AF8C"), c("#857057"), c("#F4A949"), c("#4C3921"), c("#1C1105"));
         }
 
         static Theme ruby() {
-            return new Theme(c("#170412"), c("#070209"), c("#4A0A2B"), c("#1B0615"), c("#21101B"), c("#2A1021"), c("#160812"), c("#1A0A15"), c("#12060F"), c("#FFF1FA"), c("#C49AAC"), c("#86596B"), c("#FF3366"), c("#6A2340"), c("#20020B"));
+            return new Theme(c("#191218"), c("#100B0F"), c("#30202B"), c("#251620"), c("#241820"), c("#34202B"), c("#271720"), c("#241820"), c("#170D13"), c("#FFF0F8"), c("#C9A2B7"), c("#866276"), c("#FF5C8A"), c("#523244"), c("#210711"));
         }
 
         static Theme forest() {
-            return new Theme(c("#06140C"), c("#020705"), c("#0F3D22"), c("#092015"), c("#102019"), c("#10291B"), c("#0A160F"), c("#0B1710"), c("#07110B"), c("#F0FFF4"), c("#9CC1A5"), c("#5E8068"), c("#55EE73"), c("#2E5F3C"), c("#061207"));
+            return new Theme(c("#101812"), c("#090F0B"), c("#1D2C20"), c("#142018"), c("#162019"), c("#203227"), c("#18241C"), c("#162019"), c("#0E150F"), c("#EFFAF1"), c("#A4BDA8"), c("#687C6B"), c("#68D080"), c("#33513B"), c("#071308"));
         }
 
         static Theme mono() {
-            return new Theme(c("#070709"), c("#020203"), c("#2A2A30"), c("#111116"), c("#17171D"), c("#202027"), c("#0F0F13"), c("#111116"), c("#08080A"), c("#F5F5F7"), c("#A0A0AA"), c("#707078"), c("#EDEDF2"), c("#4A4A52"), c("#08080A"));
+            return new Theme(c("#070708"), c("#000000"), c("#1B1B1E"), c("#101012"), c("#0E0E10"), c("#1B1B1F"), c("#151518"), c("#0E0E10"), c("#000000"), c("#F5F5F7"), c("#A0A0AA"), c("#707078"), c("#EDEDF2"), c("#333338"), c("#08080A"));
         }
 
         static int c(String hex) {

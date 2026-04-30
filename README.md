@@ -9,8 +9,9 @@ the app.
 
 Current native base:
 
-- Spotify/VK-inspired original native UI with animated-style canvas backdrops,
-  generated cover tiles, bottom navigation, mini player and theme packs;
+- ViMusic/RiMusic-inspired original native UI with compact song rows, quick
+  picks, search-first library, generated cover tiles, collapsed mini player and
+  theme packs;
 - local player built on Android `MediaPlayer`;
 - direct HTTP audio stream support;
 - Telegram Bot API scanner for audio messages from bot updates/channel posts;
