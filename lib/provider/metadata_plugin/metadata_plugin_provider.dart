@@ -591,29 +591,7 @@ final metadataPluginsProvider =
 final metadataPluginProvider = FutureProvider<MetadataPlugin?>(
   (ref) async {
     final telegramAuth = await ref.watch(telegramAuthProvider.future);
-    if (telegramAuth.isConnected) {
-      return createTelegramMetadataPlugin(ref, telegramAuth);
-    }
-
-    final defaultPlugin = await ref.watch(
-      metadataPluginsProvider
-          .selectAsync((data) => data.defaultMetadataPluginConfig),
-    );
-    final youtubeEngine = ref.read(youtubeEngineProvider);
-
-    if (defaultPlugin == null) {
-      return null;
-    }
-
-    final pluginsNotifier = ref.read(metadataPluginsProvider.notifier);
-    final pluginByteCode =
-        await pluginsNotifier.getPluginByteCode(defaultPlugin);
-
-    return await MetadataPlugin.create(
-      youtubeEngine,
-      defaultPlugin,
-      pluginByteCode,
-    );
+    return createTelegramMetadataPlugin(ref, telegramAuth);
   },
 );
 

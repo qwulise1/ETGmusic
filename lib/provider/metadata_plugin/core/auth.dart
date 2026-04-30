@@ -9,31 +9,7 @@ class MetadataPluginAuthenticatedNotifier extends AsyncNotifier<bool> {
   @override
   FutureOr<bool> build() async {
     final telegramAuth = await ref.watch(telegramAuthProvider.future);
-    if (telegramAuth.isConnected) {
-      return true;
-    }
-
-    final defaultPluginConfig = ref.watch(metadataPluginsProvider);
-    if (defaultPluginConfig.asData?.value.defaultMetadataPluginConfig?.abilities
-            .contains(PluginAbilities.authentication) !=
-        true) {
-      return false;
-    }
-
-    final defaultPlugin = await ref.watch(metadataPluginProvider.future);
-    if (defaultPlugin == null) {
-      return false;
-    }
-
-    final sub = defaultPlugin.auth.authStateStream.listen((event) {
-      state = AsyncData(defaultPlugin.auth.isAuthenticated());
-    });
-
-    ref.onDispose(() {
-      sub.cancel();
-    });
-
-    return defaultPlugin.auth.isAuthenticated();
+    return telegramAuth.isConnected;
   }
 }
 
