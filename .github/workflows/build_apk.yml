@@ -81,6 +81,7 @@ jobs:
 
       - name: Publish latest artifacts branch
         if: github.ref == 'refs/heads/main'
+        continue-on-error: true
         run: |
           set -euo pipefail
           out_dir="$(mktemp -d)"
@@ -97,7 +98,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout --orphan latest-artifacts-publish
-          git rm -rf . >/dev/null 2>&1 || true
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
           cp -R "$out_dir"/. .
           git add .
           git commit -m "Update ETGmusic artifacts for ${GITHUB_SHA::7}"
