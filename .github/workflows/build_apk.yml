@@ -1,19 +1,9 @@
-name: Build APK
+name: Android CI
 
 on:
   push:
-    branches:
-      - main
+    branches: ["main"]
   workflow_dispatch:
-    inputs:
-      build_mode:
-        description: Build type for Buildozer
-        required: true
-        default: debug
-        type: choice
-        options:
-          - debug
-          - release
 
 permissions:
   contents: write
@@ -21,85 +11,80 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      BUILDOZER_WARN_ON_ROOT: "0"
-      APP_ANDROID_ARCH: arm64-v8a
-      BUILD_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.build_mode || 'debug' }}
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare artifact directories
-        run: mkdir -p ci_artifacts .buildozer_global
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
 
-      - name: Build arm64-v8a APK
-        continue-on-error: true
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+
+      - name: Build native APKs
         run: |
-          set +e
-          docker run --rm \
-            -v "$GITHUB_WORKSPACE/.buildozer_global":/home/user/.buildozer \
-            -v "$GITHUB_WORKSPACE":/home/user/hostcwd \
-            -w /home/user/hostcwd \
-            -e BUILDOZER_WARN_ON_ROOT="$BUILDOZER_WARN_ON_ROOT" \
-            -e APP_ANDROID_ARCH="$APP_ANDROID_ARCH" \
-            ghcr.io/kivy/buildozer:latest \
-            -v android "$BUILD_MODE" 2>&1 | tee ci_artifacts/buildozer.log
-          status=${PIPESTATUS[0]}
-          printf '%s\n' "$status" > ci_artifacts/build_exit_code.txt
-          find . -maxdepth 6 -type f \( -name '*.apk' -o -name '*.aab' -o -name '*.log' \) | sort > ci_artifacts/workspace_files.txt
-          exit 0
+          set -euo pipefail
+          mkdir -p build/ci
+          {
+            java -version
+            gradle --version
+            gradle :app:assembleDebug :app:assembleRelease --stacktrace
+          } 2>&1 | tee build/ci/android-build.log
 
-      - name: Upload build outputs and logs
+      - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ETGmusic-${{ env.BUILD_MODE }}-artifacts
-          path: |
-            ci_artifacts/**
-            bin/*.apk
-            bin/*.aab
-            .buildozer/**/*.log
-            .buildozer/android/platform/build-*/dists/**/build.log
-            .buildozer/android/platform/build-*/dists/**/stdout.txt
-            .buildozer/android/platform/build-*/dists/**/stderr.txt
+          name: android-build-log
+          path: build/ci/android-build.log
           if-no-files-found: warn
 
-      - name: Fail workflow if build failed
-        run: |
-          if [ ! -f ci_artifacts/build_exit_code.txt ]; then
-            echo "Missing ci_artifacts/build_exit_code.txt"
-            exit 1
-          fi
-          status="$(cat ci_artifacts/build_exit_code.txt)"
-          echo "Build exit code: $status"
-          if [ "$status" != "0" ]; then
-            echo "Buildozer build failed. See uploaded artifacts for logs."
-            exit "$status"
-          fi
+      - name: Upload debug APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ETGmusic-debug
+          path: app/build/outputs/apk/debug/*.apk
+
+      - name: Upload release APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ETGmusic-release
+          path: app/build/outputs/apk/release/*.apk
 
       - name: Publish latest artifacts branch
-        if: github.ref == 'refs/heads/main'
-        continue-on-error: true
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           set -euo pipefail
           out_dir="$(mktemp -d)"
-          cp bin/*.apk "$out_dir"/
-          cp ci_artifacts/buildozer.log "$out_dir"/
-          cp ci_artifacts/workspace_files.txt "$out_dir"/
+          cp app/build/outputs/apk/debug/*.apk "$out_dir/etgmusic-native-debug.apk"
+          cp app/build/outputs/apk/release/*.apk "$out_dir/etgmusic-native-release.apk"
+          cp build/ci/android-build.log "$out_dir/android-build.log"
           cat > "$out_dir/README.txt" <<EOF
-          ETGmusic latest GitHub build
-          Commit: $GITHUB_SHA
-          Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ETGmusic native Android build
+          Commit: ${GITHUB_SHA}
+          Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
 
-          Install the APK from this branch. It is a CI debug-key signed test build.
+          Install:
+          - etgmusic-native-release.apk: package io.qwulise1.etgmusic
+          - etgmusic-native-debug.apk: package io.qwulise1.etgmusic.debug
           EOF
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout --orphan latest-artifacts-publish
+          git checkout --orphan latest-artifacts
           find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
           cp -R "$out_dir"/. .
-          git add .
-          git commit -m "Update ETGmusic artifacts for ${GITHUB_SHA::7}"
-          git push --force origin HEAD:latest-artifacts
+          git add -A
+          git commit -m "Publish native ETGmusic artifacts for ${GITHUB_SHA}"
+          git push --force origin latest-artifacts

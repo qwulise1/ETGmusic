@@ -4,3 +4,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.log
+.gradle/
+build/
+app/build/
+local.properties

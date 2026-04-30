@@ -1,7 +1,0 @@
-kivy==2.3.0
-kivymd==1.2.0
-telethon==1.36.0
-pillow==10.4.0
-pyjnius==1.6.1
-PySocks==1.7.1
-certifi
