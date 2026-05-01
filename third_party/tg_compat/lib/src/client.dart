@@ -6,7 +6,8 @@ class Client extends t.Client {
     required this.obfuscation,
     required this.authorizationKey,
     required this.idGenerator,
-  }) {
+    int? sessionId,
+  }) : sessionId = sessionId ?? _generateSessionId() {
     _transformer = _EncryptedTransformer(
       socket.receiver,
       obfuscation,
@@ -48,6 +49,7 @@ class Client extends t.Client {
   final Obfuscation obfuscation;
   final SocketAbstraction socket;
   final MessageIdGenerator idGenerator;
+  final int sessionId;
 
   late final _EncryptedTransformer _transformer;
 
@@ -149,7 +151,7 @@ class Client extends t.Client {
     _pending[m.id] = completer;
     final buffer = authorizationKey.id == 0
         ? _encodeNoAuth(method, m)
-        : _encodeWithAuth(method, m, 10, authorizationKey);
+        : _encodeWithAuth(method, m, sessionId, authorizationKey);
 
     obfuscation.send.encryptDecrypt(buffer, buffer.length);
     await socket.send(buffer);

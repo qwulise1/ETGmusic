@@ -2,6 +2,12 @@ part of '../tg.dart';
 
 final _rng = Random.secure();
 
+int _generateSessionId() {
+  final sessionId = (_rng.nextInt(0x7fffffff) << 32) |
+      _rng.nextInt(0x7fffffff);
+  return sessionId == 0 ? 1 : sessionId;
+}
+
 Uint8List _int64ToBigEndian(int value) {
   int i = 1;
   for (int temp = value; (temp >>= 8) != 0;) {

@@ -386,6 +386,10 @@ class TelegramMtprotoService {
       throw TelegramMtprotoException(
         "Не удалось подключиться к Telegram DC: ${error.message}",
       );
+    } on tg.BadMessageException catch (error, stackTrace) {
+      AppLogger.reportError(error, stackTrace);
+      await _closeConnection(socket);
+      throw TelegramMtprotoException(_humanBadMessage(error));
     } catch (error, stackTrace) {
       AppLogger.reportError(error, stackTrace);
       await _closeConnection(socket);
@@ -815,6 +819,10 @@ class TelegramMtprotoService {
       throw TelegramMtprotoException(
         "Соединение с Telegram оборвалось: ${error.message}",
       );
+    } on tg.BadMessageException catch (error, stackTrace) {
+      AppLogger.reportError(error, stackTrace);
+      await _closeConnection();
+      throw TelegramMtprotoException(_humanBadMessage(error));
     }
   }
 
@@ -835,6 +843,19 @@ class TelegramMtprotoService {
       "PHONE_NUMBER_INVALID" => "Telegram не принял номер телефона",
       "API_ID_INVALID" => "Неверный Telegram API ID/API hash",
       _ => error,
+    };
+  }
+
+  String _humanBadMessage(tg.BadMessageException error) {
+    final code = error.result.errorCode;
+    return switch (code) {
+      32 || 33 =>
+        "Telegram отклонил старый MTProto session/seqno. Я пересоздал соединение, нажми синхронизацию еще раз.",
+      16 || 17 =>
+        "Telegram отклонил msg_id. Проверь дату и время на устройстве и попробуй снова.",
+      48 =>
+        "Telegram вернул новый server salt. Нажми синхронизацию еще раз.",
+      _ => "Telegram MTProto bad message $code: ${error.errorMessage}",
     };
   }
 }
