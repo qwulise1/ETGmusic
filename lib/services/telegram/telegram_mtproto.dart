@@ -13,6 +13,9 @@ import 'package:etgmusic/services/logger/logger.dart';
 
 class TelegramMtprotoService {
   static const appName = "ETGmusic";
+  static const _socketTimeout = Duration(seconds: 15);
+  static const _authTimeout = Duration(seconds: 40);
+  static const _requestTimeout = Duration(seconds: 25);
   static const _apiIdKey = "telegram_mtproto_api_id";
   static const _apiHashKey = "telegram_mtproto_api_hash";
   static const _phoneKey = "telegram_mtproto_phone";
@@ -23,6 +26,8 @@ class TelegramMtprotoService {
   static const _dcPortKey = "telegram_mtproto_dc_port";
 
   tg.Client? _client;
+  Socket? _socket;
+  StreamSubscription<t.UpdatesBase>? _updatesSubscription;
   t.DcOption _dc = const t.DcOption(
     ipv6: false,
     mediaOnly: false,
@@ -54,18 +59,21 @@ class TelegramMtprotoService {
     }
 
     final client = await _connect(apiId: apiId);
-    final response = await client.auth.sendCode(
-      apiId: apiId,
-      apiHash: hash,
-      phoneNumber: phone,
-      settings: const t.CodeSettings(
-        allowFlashcall: false,
-        currentNumber: true,
-        allowAppHash: false,
-        allowMissedCall: false,
-        allowFirebase: false,
-        unknownNumber: false,
+    final response = await _telegramCall(
+      client.auth.sendCode(
+        apiId: apiId,
+        apiHash: hash,
+        phoneNumber: phone,
+        settings: const t.CodeSettings(
+          allowFlashcall: false,
+          currentNumber: true,
+          allowAppHash: false,
+          allowMissedCall: false,
+          allowFirebase: false,
+          unknownNumber: false,
+        ),
       ),
+      "Telegram не ответил на запрос кода. Проверь сеть/API ID и попробуй еще раз.",
     );
 
     final error = response.error;
@@ -111,16 +119,22 @@ class TelegramMtprotoService {
     }
 
     final client = await _connect(apiId: apiId);
-    final response = await client.auth.signIn(
-      phoneNumber: phone,
-      phoneCodeHash: phoneCodeHash,
-      phoneCode: code.trim(),
+    final response = await _telegramCall(
+      client.auth.signIn(
+        phoneNumber: phone,
+        phoneCodeHash: phoneCodeHash,
+        phoneCode: code.trim(),
+      ),
+      "Telegram не ответил на подтверждение кода. Попробуй еще раз.",
     );
 
     final error = response.error;
     if (error != null) {
       if (error.errorMessage == "SESSION_PASSWORD_NEEDED") {
-        final password = await client.account.getPassword();
+        final password = await _telegramCall(
+          client.account.getPassword(),
+          "Telegram не вернул параметры 2FA. Попробуй еще раз.",
+        );
         final passwordState = password.result;
         if (passwordState is! t.AccountPassword) {
           throw const TelegramMtprotoException(
@@ -150,14 +164,20 @@ class TelegramMtprotoService {
     }
 
     final client = await _connect(apiId: apiId);
-    final accountPasswordResponse = await client.account.getPassword();
+    final accountPasswordResponse = await _telegramCall(
+      client.account.getPassword(),
+      "Telegram не вернул параметры 2FA. Попробуй еще раз.",
+    );
     final accountPassword = accountPasswordResponse.result;
     if (accountPassword is! t.AccountPassword) {
       throw const TelegramMtprotoException("Telegram не вернул параметры 2FA");
     }
 
     final inputPassword = await tg.check2FA(accountPassword, password);
-    final response = await client.auth.checkPassword(password: inputPassword);
+    final response = await _telegramCall(
+      client.auth.checkPassword(password: inputPassword),
+      "Telegram не ответил на пароль 2FA. Попробуй еще раз.",
+    );
     final error = response.error;
     if (error != null) {
       throw TelegramMtprotoException(_humanError(error.errorMessage));
@@ -176,15 +196,18 @@ class TelegramMtprotoService {
     final tracks = <TelegramMtprotoTrack>[];
 
     for (final peer in peers) {
-      final response = await client.messages.getHistory(
-        peer: peer.peer,
-        offsetId: 0,
-        offsetDate: DateTime.fromMillisecondsSinceEpoch(0),
-        addOffset: 0,
-        limit: limitPerSource,
-        maxId: 0,
-        minId: 0,
-        hash: 0,
+      final response = await _telegramCall(
+        client.messages.getHistory(
+          peer: peer.peer,
+          offsetId: 0,
+          offsetDate: DateTime.fromMillisecondsSinceEpoch(0),
+          addOffset: 0,
+          limit: limitPerSource,
+          maxId: 0,
+          minId: 0,
+          hash: 0,
+        ),
+        "Telegram не ответил на чтение истории ${peer.title}",
       );
 
       final error = response.error;
@@ -226,12 +249,15 @@ class TelegramMtprotoService {
     final targetSize = size <= 0 || thumbSize.isNotEmpty ? chunkSize : size;
 
     while (offset < targetSize) {
-      final response = await client.upload.getFile(
-        precise: false,
-        cdnSupported: false,
-        location: location,
-        offset: offset,
-        limit: chunkSize,
+      final response = await _telegramCall(
+        client.upload.getFile(
+          precise: false,
+          cdnSupported: false,
+          location: location,
+          offset: offset,
+          limit: chunkSize,
+        ),
+        "Telegram не ответил на загрузку файла",
       );
 
       final error = response.error;
@@ -262,7 +288,7 @@ class TelegramMtprotoService {
   }
 
   Future<void> disconnect() async {
-    _client = null;
+    await _closeConnection();
     final prefs = KVStoreService.sharedPreferences;
     await prefs.remove(_apiIdKey);
     await prefs.remove(_phoneKey);
@@ -278,63 +304,93 @@ class TelegramMtprotoService {
     final existing = _client;
     if (existing != null) return existing;
 
-    _loadDc();
-    final socket = await Socket.connect(_dc.ipAddress, _dc.port);
-    final transport = _TelegramTcpSocket(socket);
-    final obfuscation = tg.Obfuscation.random(false, _dc.id);
-    final messageIdGenerator = tg.MessageIdGenerator();
-    await transport.send(obfuscation.preamble);
+    Socket? socket;
+    try {
+      _loadDc();
+      socket = await Socket.connect(_dc.ipAddress, _dc.port)
+          .timeout(_socketTimeout);
+      _socket = socket;
 
-    final loadedKey = await _readAuthKey();
-    final authKey = loadedKey ??
-        await tg.Client.authorize(
-          transport,
-          obfuscation,
-          messageIdGenerator,
-        );
+      final transport = _TelegramTcpSocket(socket);
+      final obfuscation = tg.Obfuscation.random(false, _dc.id);
+      final messageIdGenerator = tg.MessageIdGenerator();
+      await transport.send(obfuscation.preamble).timeout(_socketTimeout);
 
-    final client = tg.Client(
-      socket: transport,
-      obfuscation: obfuscation,
-      authorizationKey: authKey,
-      idGenerator: messageIdGenerator,
-    );
+      final loadedKey = await _readAuthKey();
+      final authKey = loadedKey ??
+          await tg.Client
+              .authorize(
+                transport,
+                obfuscation,
+                messageIdGenerator,
+              )
+              .timeout(_authTimeout);
 
-    client.stream.listen(
-      (event) => AppLogger.log.d("Telegram MTProto update: $event"),
-      onError: (Object error, StackTrace stackTrace) {
-        AppLogger.reportError(error, stackTrace);
-      },
-    );
+      final client = tg.Client(
+        socket: transport,
+        obfuscation: obfuscation,
+        authorizationKey: authKey,
+        idGenerator: messageIdGenerator,
+      );
 
-    final packageInfo = await PackageInfo.fromPlatform();
-    final config = await client.initConnection<t.ConfigBase>(
-      apiId: apiId,
-      deviceModel: appName,
-      systemVersion: Platform.operatingSystem,
-      appVersion: "$appName ${packageInfo.version}",
-      systemLangCode: Platform.localeName.split("_").first,
-      langPack: "",
-      langCode: Platform.localeName.split("_").first,
-      query: const t.HelpGetConfig(),
-    );
+      _updatesSubscription = client.stream.listen(
+        (event) => AppLogger.log.d("Telegram MTProto update: $event"),
+        onError: (Object error, StackTrace stackTrace) {
+          AppLogger.reportError(error, stackTrace);
+        },
+      );
 
-    final result = config.result;
-    if (result is t.Config) {
-      final nearestDc = result.dcOptions
-          .whereType<t.DcOption>()
-          .where((dc) => !dc.ipv6 && !dc.mediaOnly && dc.port == 443)
-          .firstWhere(
-            (dc) => dc.id == _dc.id,
-            orElse: () => result.dcOptions
-                .whereType<t.DcOption>()
-                .firstWhere((dc) => !dc.ipv6 && dc.port == 443),
-          );
-      await _saveDc(nearestDc);
+      final packageInfo = await PackageInfo.fromPlatform();
+      final config = await _telegramCall(
+        client.initConnection<t.ConfigBase>(
+          apiId: apiId,
+          deviceModel: appName,
+          systemVersion: Platform.operatingSystem,
+          appVersion: "$appName ${packageInfo.version}",
+          systemLangCode: Platform.localeName.split("_").first,
+          langPack: "",
+          langCode: Platform.localeName.split("_").first,
+          query: const t.HelpGetConfig(),
+        ),
+        "Telegram не ответил на инициализацию сессии. Попробуй еще раз.",
+      );
+
+      final result = config.result;
+      if (result is t.Config) {
+        final nearestDc = result.dcOptions
+            .whereType<t.DcOption>()
+            .where((dc) => !dc.ipv6 && !dc.mediaOnly && dc.port == 443)
+            .firstWhere(
+              (dc) => dc.id == _dc.id,
+              orElse: () => result.dcOptions
+                  .whereType<t.DcOption>()
+                  .firstWhere((dc) => !dc.ipv6 && dc.port == 443),
+            );
+        await _saveDc(nearestDc);
+      }
+
+      _client = client;
+      return client;
+    } on TelegramMtprotoException {
+      await _closeConnection(socket);
+      rethrow;
+    } on TimeoutException catch (error, stackTrace) {
+      AppLogger.reportError(error, stackTrace);
+      await _closeConnection(socket);
+      throw const TelegramMtprotoException(
+        "Telegram не ответил вовремя. Проверь сеть, API ID/API hash и попробуй еще раз.",
+      );
+    } on SocketException catch (error, stackTrace) {
+      AppLogger.reportError(error, stackTrace);
+      await _closeConnection(socket);
+      throw TelegramMtprotoException(
+        "Не удалось подключиться к Telegram DC: ${error.message}",
+      );
+    } catch (error, stackTrace) {
+      AppLogger.reportError(error, stackTrace);
+      await _closeConnection(socket);
+      throw TelegramMtprotoException("MTProto не смог подключиться: $error");
     }
-
-    _client = client;
-    return client;
   }
 
   int _readApiId() {
@@ -374,8 +430,9 @@ class TelegramMtprotoService {
       final username = _usernameFromSource(source);
       if (username == null) continue;
 
-      final resolved = await client.contacts.resolveUsername(
-        username: username,
+      final resolved = await _telegramCall(
+        client.contacts.resolveUsername(username: username),
+        "Telegram не ответил на поиск @$username",
       );
       final error = resolved.error;
       if (error != null) {
@@ -396,13 +453,16 @@ class TelegramMtprotoService {
   Future<List<_ResolvedTelegramPeer>> _loadDialogPeers(
     tg.Client client,
   ) async {
-    final response = await client.messages.getDialogs(
-      excludePinned: false,
-      offsetDate: DateTime.fromMillisecondsSinceEpoch(0),
-      offsetId: 0,
-      offsetPeer: const t.InputPeerEmpty(),
-      limit: 100,
-      hash: 0,
+    final response = await _telegramCall(
+      client.messages.getDialogs(
+        excludePinned: false,
+        offsetDate: DateTime.fromMillisecondsSinceEpoch(0),
+        offsetId: 0,
+        offsetPeer: const t.InputPeerEmpty(),
+        limit: 100,
+        hash: 0,
+      ),
+      "Telegram не ответил на список диалогов",
     );
 
     final error = response.error;
@@ -646,7 +706,10 @@ class TelegramMtprotoService {
     if (dcId == null) return false;
 
     final client = await _connect(apiId: apiId);
-    final config = await client.help.getConfig();
+    final config = await _telegramCall(
+      client.help.getConfig(),
+      "Telegram не ответил на смену дата-центра",
+    );
     final configResult = config.result;
     t.DcOption? targetDc;
     if (configResult is t.Config) {
@@ -660,7 +723,7 @@ class TelegramMtprotoService {
     if (targetDc == null) return false;
 
     await _saveDc(targetDc);
-    _client = null;
+    await _closeConnection();
     return true;
   }
 
@@ -733,6 +796,35 @@ class TelegramMtprotoService {
     } finally {
       await KVStoreService.sharedPreferences.remove(key);
     }
+  }
+
+  Future<T> _telegramCall<T>(
+    Future<T> call,
+    String timeoutMessage, {
+    Duration timeout = _requestTimeout,
+  }) async {
+    try {
+      return await call.timeout(timeout);
+    } on TimeoutException catch (error, stackTrace) {
+      AppLogger.reportError(error, stackTrace);
+      await _closeConnection();
+      throw TelegramMtprotoException(timeoutMessage);
+    } on SocketException catch (error, stackTrace) {
+      AppLogger.reportError(error, stackTrace);
+      await _closeConnection();
+      throw TelegramMtprotoException(
+        "Соединение с Telegram оборвалось: ${error.message}",
+      );
+    }
+  }
+
+  Future<void> _closeConnection([Socket? socket]) async {
+    final socketToClose = socket ?? _socket;
+    _client = null;
+    _socket = null;
+    await _updatesSubscription?.cancel();
+    _updatesSubscription = null;
+    socketToClose?.destroy();
   }
 
   String _humanError(String error) {
@@ -851,12 +943,19 @@ class TelegramMtprotoException implements Exception {
 
 class _TelegramTcpSocket extends tg.SocketAbstraction {
   final Socket socket;
+  late final Stream<Uint8List> _receiver = socket
+      .map((chunk) => Uint8List.fromList(chunk))
+      .asBroadcastStream(
+        onListen: (subscription) {
+          if (subscription.isPaused) subscription.resume();
+        },
+        onCancel: (subscription) => subscription.pause(),
+      );
 
   _TelegramTcpSocket(this.socket);
 
   @override
-  Stream<Uint8List> get receiver =>
-      socket.map((chunk) => Uint8List.fromList(chunk));
+  Stream<Uint8List> get receiver => _receiver;
 
   @override
   Future<void> send(List<int> data) async {

@@ -1,5 +1,5 @@
 import 'package:auto_route/auto_route.dart';
-import 'package:flutter/material.dart' show ListTile, Wrap;
+import 'package:flutter/material.dart' show ListTile, TextInputType, Wrap;
 
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -51,15 +51,8 @@ class TelegramAccountTile extends HookConsumerWidget {
     final auth = ref.watch(telegramAuthProvider);
     final filters = ref.watch(telegramSourceFiltersProvider);
     final tokenController = useTextEditingController();
-    final apiIdController = useTextEditingController();
-    final apiHashController = useTextEditingController();
-    final phoneController = useTextEditingController();
-    final codeController = useTextEditingController();
-    final passwordController = useTextEditingController();
     final sourcesController = useTextEditingController();
     final showToken = useState(false);
-    final showApiHash = useState(false);
-    final showPassword = useState(false);
     final syncing = useState(false);
     final filtersText = filters.asData?.value.join("\n") ?? "";
 
@@ -88,54 +81,6 @@ class TelegramAccountTile extends HookConsumerWidget {
       await ref.read(telegramAuthProvider.notifier).disconnect();
       if (!context.mounted) return;
       _showTelegramToast(context, "Telegram отключен");
-    }
-
-    Future<void> startSession() async {
-      try {
-        final apiId = int.tryParse(apiIdController.text.trim());
-        if (apiId == null) {
-          throw const TelegramAuthException("API ID должен быть числом");
-        }
-        await ref.read(telegramAuthProvider.notifier).startUserSession(
-              apiId: apiId,
-              apiHash: apiHashController.text,
-              phoneNumber: phoneController.text,
-            );
-        codeController.clear();
-        if (!context.mounted) return;
-        _showTelegramToast(context, "Код отправлен в Telegram");
-      } catch (e) {
-        if (!context.mounted) return;
-        _showTelegramToast(context, e.toString(), error: true);
-      }
-    }
-
-    Future<void> submitCode() async {
-      try {
-        await ref
-            .read(telegramAuthProvider.notifier)
-            .submitUserSessionCode(codeController.text);
-        codeController.clear();
-        if (!context.mounted) return;
-        _showTelegramToast(context, "Telegram-сессия подключена");
-      } catch (e) {
-        if (!context.mounted) return;
-        _showTelegramToast(context, e.toString(), error: true);
-      }
-    }
-
-    Future<void> submitPassword() async {
-      try {
-        await ref
-            .read(telegramAuthProvider.notifier)
-            .submitUserSessionPassword(passwordController.text);
-        passwordController.clear();
-        if (!context.mounted) return;
-        _showTelegramToast(context, "Telegram-сессия подключена");
-      } catch (e) {
-        if (!context.mounted) return;
-        _showTelegramToast(context, e.toString(), error: true);
-      }
     }
 
     Future<List<String>> saveSources({bool silent = false}) async {
@@ -264,83 +209,27 @@ class TelegramAccountTile extends HookConsumerWidget {
               ),
             ),
           ),
-          if (!value.isBotConnected && value.mode != TelegramAuthMode.user) ...[
-            TextField(
-              controller: apiIdController,
-              placeholder: const Text("Telegram API ID"),
-            ),
-            TextField(
-              controller: apiHashController,
-              obscureText: !showApiHash.value,
-              placeholder: const Text("Telegram API hash"),
-              features: [
-                InputFeature.trailing(
-                  IconButton.ghost(
-                    icon: Icon(
-                      showApiHash.value
-                          ? SpotubeIcons.eye
-                          : SpotubeIcons.noEye,
-                    ),
-                    onPressed: () => showApiHash.value = !showApiHash.value,
-                  ),
-                ),
-              ],
-            ),
-            TextField(
-              controller: phoneController,
-              placeholder: const Text("+79990000000"),
-            ),
+          if (!value.isBotConnected && !value.isUserSessionConnected) ...[
             Button.primary(
               enabled: !loading,
-              onPressed: startSession,
+              onPressed: () => _openTelegramSessionDialog(context, value),
               leading: loading
                   ? const SizedBox.square(
                       dimension: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(SpotubeIcons.login),
-              child: const Text("Получить код Telegram"),
-            ),
-          ],
-          if (value.sessionStatus == TelegramSessionStatus.codeSent) ...[
-            TextField(
-              controller: codeController,
-              placeholder: const Text("Код из Telegram"),
-            ),
-            Button.primary(
-              enabled: !loading,
-              onPressed: submitCode,
-              leading: const Icon(SpotubeIcons.done),
-              child: const Text("Подтвердить код"),
-            ),
-          ],
-          if (value.sessionStatus == TelegramSessionStatus.passwordRequired) ...[
-            TextField(
-              controller: passwordController,
-              obscureText: !showPassword.value,
-              placeholder: Text(
-                value.passwordHint == null
-                    ? "Пароль 2FA"
-                    : "Пароль 2FA, подсказка: ${value.passwordHint}",
+              child: Text(
+                value.isUserSessionPending
+                    ? "Продолжить вход через Telegram"
+                    : "Войти через Telegram-сессию",
               ),
-              features: [
-                InputFeature.trailing(
-                  IconButton.ghost(
-                    icon: Icon(
-                      showPassword.value
-                          ? SpotubeIcons.eye
-                          : SpotubeIcons.noEye,
-                    ),
-                    onPressed: () => showPassword.value = !showPassword.value,
-                  ),
-                ),
-              ],
             ),
-            Button.primary(
-              enabled: !loading,
-              onPressed: submitPassword,
-              leading: const Icon(SpotubeIcons.done),
-              child: const Text("Подтвердить 2FA"),
+            Text(
+              "Код вводится в отдельном окне сразу после успешной отправки. Если на аккаунте есть 2FA, следующим шагом появится поле пароля.",
+              style: context.theme.typography.xSmall.copyWith(
+                color: context.theme.colorScheme.mutedForeground,
+              ),
             ),
           ],
           if (value.isUserSessionConnected)
@@ -405,6 +294,21 @@ class TelegramAccountTile extends HookConsumerWidget {
     );
   }
 
+  Future<void> _openTelegramSessionDialog(
+    BuildContext context,
+    TelegramAuthState value,
+  ) async {
+    final result = await showDialog<_TelegramSessionDialogResult>(
+      context: context,
+      builder: (context) => _TelegramSessionDialog(initialState: value),
+    );
+
+    if (!context.mounted || result == null) return;
+    if (result == _TelegramSessionDialogResult.connected) {
+      _showTelegramToast(context, "Telegram-сессия подключена");
+    }
+  }
+
   void _showTelegramToast(
     BuildContext context,
     String message, {
@@ -421,6 +325,236 @@ class TelegramAccountTile extends HookConsumerWidget {
           title: Text(message),
         ),
       ),
+    );
+  }
+}
+
+enum _TelegramSessionStep {
+  credentials,
+  code,
+  password,
+}
+
+enum _TelegramSessionDialogResult {
+  connected,
+}
+
+class _TelegramSessionDialog extends HookConsumerWidget {
+  final TelegramAuthState initialState;
+
+  const _TelegramSessionDialog({
+    required this.initialState,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final apiIdController = useTextEditingController();
+    final apiHashController = useTextEditingController();
+    final phoneController = useTextEditingController(
+      text: initialState.phoneNumber ?? "",
+    );
+    final codeController = useTextEditingController();
+    final passwordController = useTextEditingController();
+    final showApiHash = useState(false);
+    final showPassword = useState(false);
+    final submitting = useState(false);
+    final error = useState<String?>(null);
+    final passwordHint = useState(initialState.passwordHint);
+    final step = useState(switch (initialState.sessionStatus) {
+      TelegramSessionStatus.codeSent => _TelegramSessionStep.code,
+      TelegramSessionStatus.passwordRequired => _TelegramSessionStep.password,
+      _ => _TelegramSessionStep.credentials,
+    });
+
+    Future<void> requestCode() async {
+      final apiId = int.tryParse(apiIdController.text.trim());
+      if (apiId == null) {
+        error.value = "API ID должен быть числом";
+        return;
+      }
+
+      submitting.value = true;
+      error.value = null;
+      try {
+        await ref.read(telegramAuthProvider.notifier).startUserSession(
+              apiId: apiId,
+              apiHash: apiHashController.text,
+              phoneNumber: phoneController.text,
+            );
+        codeController.clear();
+        step.value = _TelegramSessionStep.code;
+      } catch (e) {
+        error.value = e.toString();
+      } finally {
+        if (context.mounted) submitting.value = false;
+      }
+    }
+
+    Future<void> confirmCode() async {
+      if (codeController.text.trim().isEmpty) {
+        error.value = "Введи код из Telegram";
+        return;
+      }
+
+      submitting.value = true;
+      error.value = null;
+      try {
+        await ref
+            .read(telegramAuthProvider.notifier)
+            .submitUserSessionCode(codeController.text);
+        final next = ref.read(telegramAuthProvider).asData?.value;
+        if (next?.sessionStatus == TelegramSessionStatus.passwordRequired) {
+          passwordHint.value = next?.passwordHint;
+          passwordController.clear();
+          step.value = _TelegramSessionStep.password;
+          return;
+        }
+        if (context.mounted) {
+          Navigator.of(context).pop(_TelegramSessionDialogResult.connected);
+        }
+      } catch (e) {
+        error.value = e.toString();
+      } finally {
+        if (context.mounted) submitting.value = false;
+      }
+    }
+
+    Future<void> confirmPassword() async {
+      if (passwordController.text.trim().isEmpty) {
+        error.value = "Введи пароль 2FA";
+        return;
+      }
+
+      submitting.value = true;
+      error.value = null;
+      try {
+        await ref
+            .read(telegramAuthProvider.notifier)
+            .submitUserSessionPassword(passwordController.text);
+        if (context.mounted) {
+          Navigator.of(context).pop(_TelegramSessionDialogResult.connected);
+        }
+      } catch (e) {
+        error.value = e.toString();
+      } finally {
+        if (context.mounted) submitting.value = false;
+      }
+    }
+
+    final title = switch (step.value) {
+      _TelegramSessionStep.credentials => "Telegram-сессия",
+      _TelegramSessionStep.code => "Код из Telegram",
+      _TelegramSessionStep.password => "Пароль 2FA",
+    };
+    final actionText = switch (step.value) {
+      _TelegramSessionStep.credentials => "Отправить код",
+      _TelegramSessionStep.code => "Подтвердить код",
+      _TelegramSessionStep.password => "Подтвердить 2FA",
+    };
+    final onAction = switch (step.value) {
+      _TelegramSessionStep.credentials => requestCode,
+      _TelegramSessionStep.code => confirmCode,
+      _TelegramSessionStep.password => confirmPassword,
+    };
+
+    return AlertDialog(
+      title: Text(title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: 12,
+        children: [
+          Text(
+            switch (step.value) {
+              _TelegramSessionStep.credentials =>
+                "Укажи API ID/API hash с my.telegram.org и номер телефона. После успешной отправки здесь же появится поле для кода.",
+              _TelegramSessionStep.code =>
+                "Код приходит в Telegram. Введи его сюда; если включена двухфакторка, следующим шагом появится пароль.",
+              _TelegramSessionStep.password =>
+                "Telegram запросил пароль 2FA${passwordHint.value == null ? "" : ". Подсказка: ${passwordHint.value}"}",
+            },
+            style: context.theme.typography.small.copyWith(
+              color: context.theme.colorScheme.mutedForeground,
+            ),
+          ),
+          if (step.value == _TelegramSessionStep.credentials) ...[
+            TextField(
+              controller: apiIdController,
+              keyboardType: TextInputType.number,
+              placeholder: const Text("Telegram API ID"),
+            ),
+            TextField(
+              controller: apiHashController,
+              obscureText: !showApiHash.value,
+              placeholder: const Text("Telegram API hash"),
+              features: [
+                InputFeature.trailing(
+                  IconButton.ghost(
+                    icon: Icon(
+                      showApiHash.value
+                          ? SpotubeIcons.eye
+                          : SpotubeIcons.noEye,
+                    ),
+                    onPressed: () => showApiHash.value = !showApiHash.value,
+                  ),
+                ),
+              ],
+            ),
+            TextField(
+              controller: phoneController,
+              keyboardType: TextInputType.phone,
+              placeholder: const Text("+79990000000"),
+            ),
+          ],
+          if (step.value == _TelegramSessionStep.code)
+            TextField(
+              controller: codeController,
+              keyboardType: TextInputType.number,
+              placeholder: const Text("Код из Telegram"),
+            ),
+          if (step.value == _TelegramSessionStep.password)
+            TextField(
+              controller: passwordController,
+              obscureText: !showPassword.value,
+              placeholder: const Text("Пароль 2FA"),
+              features: [
+                InputFeature.trailing(
+                  IconButton.ghost(
+                    icon: Icon(
+                      showPassword.value
+                          ? SpotubeIcons.eye
+                          : SpotubeIcons.noEye,
+                    ),
+                    onPressed: () => showPassword.value = !showPassword.value,
+                  ),
+                ),
+              ],
+            ),
+          if (error.value != null)
+            Text(
+              error.value!,
+              style: TextStyle(color: context.theme.colorScheme.destructive),
+            ),
+        ],
+      ),
+      actions: [
+        Button.outline(
+          enabled: !submitting.value,
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text("Закрыть"),
+        ),
+        Button.primary(
+          enabled: !submitting.value,
+          onPressed: onAction,
+          leading: submitting.value
+              ? const SizedBox.square(
+                  dimension: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(SpotubeIcons.login),
+          child: Text(actionText),
+        ),
+      ],
     );
   }
 }
