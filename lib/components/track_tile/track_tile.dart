@@ -21,6 +21,7 @@ import 'package:etgmusic/models/metadata/metadata.dart';
 import 'package:etgmusic/provider/audio_player/querying_track_info.dart';
 import 'package:etgmusic/provider/audio_player/state.dart';
 import 'package:etgmusic/provider/blacklist_provider.dart';
+import 'package:etgmusic/services/telegram/telegram_media.dart';
 import 'package:etgmusic/utils/platform.dart';
 
 final isBlacklistedProvider =
@@ -75,6 +76,9 @@ class TrackTile extends HookConsumerWidget {
     final isPlaying = playlist.activeTrack?.id == track.id;
 
     final isSelected = isPlaying || isLoading.value;
+    final telegramCacheStatus = track.id.startsWith("telegram:")
+        ? ref.watch(telegramTrackCacheStatusProvider(track.id)).asData?.value
+        : null;
 
     final imageProvider = useMemoized(
       () => UniversalImage.imageProvider(
@@ -265,6 +269,23 @@ class TrackTile extends HookConsumerWidget {
                   },
                   ),
                 ),
+                if (telegramCacheStatus?.failed == true) ...[
+                  const SizedBox(width: 6),
+                  Tooltip(
+                    tooltip: TooltipContainer(
+                      child: Text(
+                        telegramCacheStatus?.error?.isNotEmpty == true
+                            ? "Не скачалось: ${telegramCacheStatus!.error}"
+                            : "Трек не скачан локально",
+                      ),
+                    ).call,
+                    child: Icon(
+                      SpotubeIcons.warning,
+                      size: 16,
+                      color: theme.colorScheme.destructive,
+                    ),
+                  ),
+                ],
                 if (constrains.mdAndUp) ...[
                   const SizedBox(width: 8),
                   Expanded(

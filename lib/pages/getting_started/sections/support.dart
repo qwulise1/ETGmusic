@@ -105,14 +105,14 @@ class GettingStartedScreenSupportSection extends HookConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Button.primary(
-                  leading: const Icon(SpotubeIcons.extensions),
+                  leading: const Icon(SpotubeIcons.done),
                   onPressed: () async {
                     await KVStoreService.setDoneGettingStarted(true);
                     if (context.mounted) {
-                      context.pushRoute(const SettingsMetadataProviderRoute());
+                      context.router.navigate(const HomeRoute());
                     }
                   },
-                  child: Text(context.l10n.install_a_metadata_provider),
+                  child: const Text("Начать слушать"),
                 ),
               ],
             ),

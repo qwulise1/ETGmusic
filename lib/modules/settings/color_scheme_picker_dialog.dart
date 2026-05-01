@@ -33,12 +33,39 @@ final Set<SpotubeColor> colorsMap = {
   SpotubeColor(Colors.stone.value, name: "stone"),
   SpotubeColor(Colors.red.value, name: "red"),
   SpotubeColor(Colors.orange.value, name: "orange"),
+  SpotubeColor(Colors.amber.value, name: "amber"),
   SpotubeColor(Colors.yellow.value, name: "yellow"),
+  SpotubeColor(Colors.lime.value, name: "lime"),
   SpotubeColor(Colors.green.value, name: "green"),
+  SpotubeColor(Colors.emerald.value, name: "emerald"),
+  SpotubeColor(Colors.teal.value, name: "teal"),
+  SpotubeColor(Colors.cyan.value, name: "cyan"),
+  SpotubeColor(Colors.sky.value, name: "sky"),
   SpotubeColor(Colors.blue.value, name: "blue"),
+  SpotubeColor(Colors.indigo.value, name: "indigo"),
   SpotubeColor(Colors.violet.value, name: "violet"),
+  SpotubeColor(Colors.purple.value, name: "purple"),
+  SpotubeColor(Colors.fuchsia.value, name: "fuchsia"),
+  SpotubeColor(Colors.pink.value, name: "pink"),
   SpotubeColor(Colors.rose.value, name: "rose"),
 };
+
+ColorScheme Function(ThemeMode) _accentScheme(
+  SpotubeColor color, {
+  Color foreground = Colors.white,
+}) {
+  return (mode) {
+    final scheme = LegacyColorSchemes.blue(mode);
+    return scheme.copyWith(
+      primary: () => color,
+      primaryForeground: () => foreground,
+      ring: () => color,
+      chart1: () => color,
+      sidebarPrimary: () => color,
+      sidebarPrimaryForeground: () => foreground,
+    );
+  };
+}
 
 final colorSchemeMap = {
   "slate": LegacyColorSchemes.slate,
@@ -48,10 +75,29 @@ final colorSchemeMap = {
   "stone": LegacyColorSchemes.stone,
   "red": LegacyColorSchemes.red,
   "orange": LegacyColorSchemes.orange,
+  "amber": _accentScheme(
+    colorsMap.firstWhere((color) => color.name == "amber"),
+    foreground: Colors.black,
+  ),
   "yellow": LegacyColorSchemes.yellow,
+  "lime": _accentScheme(
+    colorsMap.firstWhere((color) => color.name == "lime"),
+    foreground: Colors.black,
+  ),
   "green": LegacyColorSchemes.green,
+  "emerald": _accentScheme(colorsMap.firstWhere((color) => color.name == "emerald")),
+  "teal": _accentScheme(colorsMap.firstWhere((color) => color.name == "teal")),
+  "cyan": _accentScheme(
+    colorsMap.firstWhere((color) => color.name == "cyan"),
+    foreground: Colors.black,
+  ),
+  "sky": _accentScheme(colorsMap.firstWhere((color) => color.name == "sky")),
   "blue": LegacyColorSchemes.blue,
+  "indigo": _accentScheme(colorsMap.firstWhere((color) => color.name == "indigo")),
   "violet": LegacyColorSchemes.violet,
+  "purple": _accentScheme(colorsMap.firstWhere((color) => color.name == "purple")),
+  "fuchsia": _accentScheme(colorsMap.firstWhere((color) => color.name == "fuchsia")),
+  "pink": _accentScheme(colorsMap.firstWhere((color) => color.name == "pink")),
   "rose": LegacyColorSchemes.rose,
 };
 

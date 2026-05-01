@@ -15,6 +15,7 @@ import 'package:etgmusic/modules/settings/section_card_with_heading.dart';
 import 'package:etgmusic/extensions/context.dart';
 import 'package:etgmusic/modules/settings/youtube_engine_not_installed_dialog.dart';
 import 'package:etgmusic/provider/metadata_plugin/audio_source/quality_presets.dart';
+import 'package:etgmusic/provider/player_volume_control_provider.dart';
 import 'package:etgmusic/provider/user_preferences/user_preferences_provider.dart';
 import 'package:etgmusic/services/kv_store/kv_store.dart';
 import 'package:etgmusic/services/youtube_engine/yt_dlp_engine.dart';
@@ -31,6 +32,7 @@ class SettingsPlaybackSection extends HookConsumerWidget {
     final sourcePresets = ref.watch(audioSourcePresetsProvider);
     final sourcePresetsNotifier =
         ref.watch(audioSourcePresetsProvider.notifier);
+    final showPlayerVolume = ref.watch(playerVolumeControlProvider);
     final theme = Theme.of(context);
 
     return SectionCardWithHeading(
@@ -170,6 +172,18 @@ class SettingsPlaybackSection extends HookConsumerWidget {
           trailing: Switch(
             value: preferences.normalizeAudio,
             onChanged: preferencesNotifier.setNormalizeAudio,
+          ),
+        ),
+        ListTile(
+          leading: const Icon(SpotubeIcons.volumeHigh),
+          title: const Text("Регулятор громкости в плеере"),
+          subtitle: const Text(
+            "Показывать кнопку и слайдер громкости в нижнем и полном плеере.",
+          ),
+          trailing: Switch(
+            value: showPlayerVolume,
+            onChanged:
+                ref.read(playerVolumeControlProvider.notifier).setVisible,
           ),
         ),
         ListTile(

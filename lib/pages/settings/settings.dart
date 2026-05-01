@@ -5,7 +5,6 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:etgmusic/components/titlebar/titlebar.dart';
 import 'package:etgmusic/extensions/context.dart';
-import 'package:etgmusic/pages/settings/sections/about.dart';
 import 'package:etgmusic/pages/settings/sections/accounts.dart';
 import 'package:etgmusic/pages/settings/sections/appearance.dart';
 import 'package:etgmusic/pages/settings/sections/desktop.dart';
@@ -55,7 +54,6 @@ class SettingsPage extends HookConsumerWidget {
                       const SettingsDownloadsSection(),
                       if (kIsDesktop) const SettingsDesktopSection(),
                       if (!kIsWeb) const SettingsDevelopersSection(),
-                      const SettingsAboutSection(),
                       Center(
                         child: Button.destructive(
                           onPressed: preferencesNotifier.reset,

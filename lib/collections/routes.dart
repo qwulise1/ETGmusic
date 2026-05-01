@@ -88,11 +88,7 @@ class AppRouter extends RootStackRouter {
               page: SettingsRoute.page,
             ),
             AutoRoute(
-              path: "settings/metadata-provider",
-              page: SettingsMetadataProviderRoute.page,
-            ),
-            AutoRoute(
-              path: "settings/metadata-provider/metadata-form",
+              path: "settings/metadata-form",
               page: SettingsMetadataProviderFormRoute.page,
             ),
             AutoRoute(
@@ -104,10 +100,6 @@ class AppRouter extends RootStackRouter {
                 path: "settings/logs",
                 page: LogsRoute.page,
               ),
-            AutoRoute(
-              path: "settings/about",
-              page: AboutSpotubeRoute.page,
-            ),
             AutoRoute(
               path: "settings/scrobbling",
               page: SettingsScrobblingRoute.page,

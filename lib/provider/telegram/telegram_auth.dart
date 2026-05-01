@@ -52,7 +52,7 @@ class TelegramAuthState {
     if (!isConnected) return "Telegram не подключен";
     if (mode == TelegramAuthMode.user) {
       return isUserSessionConnected
-          ? "Подключена Telegram-сессия"
+          ? "Telegram-сессия активна"
           : "Вход через Telegram-сессию";
     }
     final username = botUsername == null ? "" : " @$botUsername";
@@ -65,7 +65,7 @@ class TelegramAuthState {
     }
 
     if (mode == TelegramAuthMode.user) {
-      final phone = phoneNumber == null ? "" : " $phoneNumber";
+      final phone = phoneNumber == null ? "" : " ${_maskPhoneNumber(phoneNumber!)}";
       final date = connectedAt == null
           ? ""
           : " · ${connectedAt!.day.toString().padLeft(2, '0')}.${connectedAt!.month.toString().padLeft(2, '0')}.${connectedAt!.year}";
@@ -84,6 +84,22 @@ class TelegramAuthState {
         : " · ${connectedAt!.day.toString().padLeft(2, '0')}.${connectedAt!.month.toString().padLeft(2, '0')}.${connectedAt!.year}";
     return "$name$date";
   }
+}
+
+String _maskPhoneNumber(String phone) {
+  final digits = phone.replaceAll(RegExp(r"\D"), "");
+  if (digits.length <= 4) return phone;
+
+  var seen = 0;
+  final hideStart = (digits.length / 2).floor() - 1;
+  final hideEnd = hideStart + 2;
+
+  return phone.split("").map((char) {
+    if (!RegExp(r"\d").hasMatch(char)) return char;
+    final shouldHide = seen >= hideStart && seen < hideEnd;
+    seen++;
+    return shouldHide ? "•" : char;
+  }).join();
 }
 
 class TelegramAuthNotifier extends AsyncNotifier<TelegramAuthState> {

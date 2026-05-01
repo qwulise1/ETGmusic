@@ -17,6 +17,7 @@ import 'package:etgmusic/modules/player/volume_slider.dart';
 import 'package:etgmusic/extensions/constrains.dart';
 import 'package:etgmusic/extensions/context.dart';
 import 'package:etgmusic/provider/audio_player/audio_player.dart';
+import 'package:etgmusic/provider/player_volume_control_provider.dart';
 import 'package:etgmusic/provider/user_preferences/user_preferences_provider.dart';
 
 import 'package:etgmusic/provider/volume_provider.dart';
@@ -31,6 +32,7 @@ class BottomPlayer extends HookConsumerWidget {
     final playlist = ref.watch(audioPlayerProvider);
     final layoutMode =
         ref.watch(userPreferencesProvider.select((s) => s.layoutMode));
+    final showVolumeControl = ref.watch(playerVolumeControlProvider);
 
     final mediaQuery = MediaQuery.of(context);
 
@@ -109,21 +111,22 @@ class BottomPlayer extends HookConsumerWidget {
                   ),
                 ],
               ),
-              Container(
-                height: 40,
-                constraints: const BoxConstraints(maxWidth: 250),
-                padding: const EdgeInsets.only(right: 10),
-                child: Consumer(builder: (context, ref, _) {
-                  final volume = ref.watch(volumeProvider);
-                  return VolumeSlider(
-                    fullWidth: true,
-                    value: volume,
-                    onChanged: (value) {
-                      ref.read(volumeProvider.notifier).setVolume(value);
-                    },
-                  );
-                }),
-              )
+              if (showVolumeControl)
+                Container(
+                  height: 40,
+                  constraints: const BoxConstraints(maxWidth: 250),
+                  padding: const EdgeInsets.only(right: 10),
+                  child: Consumer(builder: (context, ref, _) {
+                    final volume = ref.watch(volumeProvider);
+                    return VolumeSlider(
+                      fullWidth: true,
+                      value: volume,
+                      onChanged: (value) {
+                        ref.read(volumeProvider.notifier).setVolume(value);
+                      },
+                    );
+                  }),
+                )
             ],
           ),
         ],

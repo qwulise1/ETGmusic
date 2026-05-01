@@ -365,15 +365,15 @@ class TelegramMtprotoService {
 	      accessHash: accessHash,
       fileReference: base64Decode(fileReferenceBase64),
       thumbSize: thumbSize,
-    );
-    final builder = BytesBuilder(copy: false);
+	    );
+	    final builder = BytesBuilder(copy: false);
 	    var offset = 0;
 	    const chunkSize = 512 * 1024;
-	    final targetSize = size <= 0 || thumbSize.isNotEmpty ? chunkSize : size;
+	    final hasKnownSize = size > 0 && thumbSize.isEmpty;
 
-	    while (offset < targetSize) {
-      final response = await _telegramCall(
-        client.upload.getFile(
+	    while (true) {
+	      final response = await _telegramCall(
+	        client.upload.getFile(
           precise: false,
           cdnSupported: false,
           location: location,
@@ -407,13 +407,17 @@ class TelegramMtprotoService {
         );
       }
 
-      final bytes = result.bytes;
-      if (bytes.isEmpty) break;
-      builder.add(bytes);
-      offset += bytes.length;
+	      final bytes = result.bytes;
+	      if (bytes.isEmpty) break;
+	      builder.add(bytes);
+	      offset += bytes.length;
 
-      if (bytes.length < chunkSize || thumbSize.isNotEmpty) break;
-    }
+	      if (thumbSize.isNotEmpty ||
+	          bytes.length < chunkSize ||
+	          (hasKnownSize && offset >= size)) {
+	        break;
+	      }
+	    }
 
 	    return builder.takeBytes();
 	  }
@@ -1039,21 +1043,27 @@ class TelegramMtprotoService {
 	    }
 	  }
 
-  Future<String?> _readSecure(String key) async {
-    try {
-      return await EncryptedKvStoreService.storage.read(key: key);
-    } catch (_) {
-      return KVStoreService.sharedPreferences.getString(key);
-    }
-  }
+	  Future<String?> _readSecure(String key) async {
+	    try {
+	      final value = await EncryptedKvStoreService.storage.read(key: key);
+	      if (value != null && value.isNotEmpty) {
+	        await KVStoreService.sharedPreferences.setString(key, value);
+	      }
+	      return value ?? KVStoreService.sharedPreferences.getString(key);
+	    } catch (_) {
+	      return KVStoreService.sharedPreferences.getString(key);
+	    }
+	  }
 
-  Future<void> _writeSecure(String key, String value) async {
-    try {
-      await EncryptedKvStoreService.storage.write(key: key, value: value);
-    } catch (_) {
-      await KVStoreService.sharedPreferences.setString(key, value);
-    }
-  }
+	  Future<void> _writeSecure(String key, String value) async {
+	    try {
+	      await EncryptedKvStoreService.storage.write(key: key, value: value);
+	    } catch (_) {
+	      // SharedPreferences below is the stable fallback.
+	    } finally {
+	      await KVStoreService.sharedPreferences.setString(key, value);
+	    }
+	  }
 
   Future<void> _deleteSecure(String key) async {
     try {

@@ -22,6 +22,7 @@ import 'package:etgmusic/extensions/context.dart';
 import 'package:etgmusic/modules/root/spotube_navigation_bar.dart';
 import 'package:etgmusic/provider/audio_player/audio_player.dart';
 import 'package:etgmusic/provider/metadata_plugin/audio_source/quality_label.dart';
+import 'package:etgmusic/provider/player_volume_control_provider.dart';
 import 'package:etgmusic/provider/server/active_track_sources.dart';
 import 'package:etgmusic/provider/volume_provider.dart';
 
@@ -44,6 +45,10 @@ class PlayerView extends HookConsumerWidget {
     final isLocalTrack = currentActiveTrack is SpotubeLocalTrackObject;
     final mediaQuery = MediaQuery.sizeOf(context);
     final qualityLabel = ref.watch(audioSourceQualityLabelProvider);
+    final showVolumeControl = ref.watch(playerVolumeControlProvider);
+    final albumArtSize = (mediaQuery.smAndDown ? mediaQuery.width - 48 : 360)
+        .clamp(240, 380)
+        .toDouble();
 
     final shouldHide = useState(true);
 
@@ -90,7 +95,7 @@ class PlayerView extends HookConsumerWidget {
       },
       child: SurfaceCard(
         borderWidth: 0,
-        surfaceOpacity: 0.9,
+        surfaceOpacity: 0.82,
         padding: EdgeInsets.zero,
         child: Scaffold(
           backgroundColor: Colors.transparent,
@@ -134,29 +139,51 @@ class PlayerView extends HookConsumerWidget {
               ),
             ),
           ],
-          child: SingleChildScrollView(
-            controller: scrollController,
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  theme.colorScheme.primary.withAlpha(34),
+                  theme.colorScheme.background,
+                ],
+              ),
+            ),
+            child: SingleChildScrollView(
+              controller: scrollController,
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
               child: Column(
                 children: [
                   Container(
-                    margin: const EdgeInsets.all(8),
-                    constraints:
-                        const BoxConstraints(maxHeight: 300, maxWidth: 300),
+                    margin: const EdgeInsets.fromLTRB(16, 14, 16, 22),
+                    padding: const EdgeInsets.all(10),
+                    constraints: BoxConstraints(
+                      maxHeight: albumArtSize,
+                      maxWidth: albumArtSize,
+                    ),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(34),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          theme.colorScheme.primary.withAlpha(70),
+                          theme.colorScheme.secondary.withAlpha(34),
+                        ],
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withAlpha(100),
-                          spreadRadius: 2,
-                          blurRadius: 10,
+                          color: Colors.black.withAlpha(90),
+                          spreadRadius: 1,
+                          blurRadius: 28,
                           offset: Offset.zero,
                         ),
                       ],
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(26),
                       child: UniversalImage(
                         path: albumArt,
                         placeholder: Assets.images.albumPlaceholder.path,
@@ -164,10 +191,18 @@ class PlayerView extends HookConsumerWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 60),
+                  const SizedBox(height: 18),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.all(18),
                     alignment: Alignment.centerLeft,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.card.withAlpha(210),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: theme.colorScheme.border.withAlpha(140),
+                      ),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -237,20 +272,22 @@ class PlayerView extends HookConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 25),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Consumer(builder: (context, ref, _) {
-                      final volume = ref.watch(volumeProvider);
-                      return VolumeSlider(
-                        fullWidth: true,
-                        value: volume,
-                        onChanged: (value) {
-                          ref.read(volumeProvider.notifier).setVolume(value);
-                        },
-                      );
-                    }),
-                  ),
-                  const Gap(25),
+                  if (showVolumeControl) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Consumer(builder: (context, ref, _) {
+                        final volume = ref.watch(volumeProvider);
+                        return VolumeSlider(
+                          fullWidth: true,
+                          value: volume,
+                          onChanged: (value) {
+                            ref.read(volumeProvider.notifier).setVolume(value);
+                          },
+                        );
+                      }),
+                    ),
+                    const Gap(25),
+                  ],
                   OutlineBadge(
                     style: const ButtonStyle.outline(
                       size: ButtonSize.normal,
@@ -265,6 +302,7 @@ class PlayerView extends HookConsumerWidget {
                     child: Text(qualityLabel),
                   )
                 ],
+              ),
               ),
             ),
           ),

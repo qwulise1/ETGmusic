@@ -29,10 +29,10 @@ class NoDefaultMetadataPlugin extends StatelessWidget {
             maxLines: 1,
           ),
           Button.primary(
-            leading: const Icon(SpotubeIcons.extensions),
-            child: Text(context.l10n.manage_metadata_providers),
+            leading: const Icon(SpotubeIcons.message),
+            child: const Text("Открыть настройки Telegram"),
             onPressed: () {
-              context.pushRoute(const SettingsMetadataProviderRoute());
+              context.navigateTo(const SettingsRoute());
             },
           ),
         ],

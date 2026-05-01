@@ -180,6 +180,7 @@ class MetadataPluginNotifier extends AsyncNotifier<MetadataPluginState> {
 
   Future<void> _loadDefaultPlugins(MetadataPluginState pluginState) async {
     const plugins = [
+      "spotube-plugin-spotify",
       "spotube-plugin-musicbrainz-listenbrainz",
       "spotube-plugin-youtube-audio",
     ];
@@ -213,6 +214,25 @@ class MetadataPluginNotifier extends AsyncNotifier<MetadataPluginState> {
             await setDefaultAudioSourcePlugin(pluginConfig);
           }
         }
+      }
+    }
+
+    final latestPluginState =
+        await toStatePlugins(await database.pluginsTable.select().get());
+    if (latestPluginState.defaultMetadataPluginConfig == null) {
+      final metadataPlugin = latestPluginState.plugins.firstWhereOrNull(
+        (plugin) => plugin.abilities.contains(PluginAbilities.metadata),
+      );
+      if (metadataPlugin != null) {
+        await setDefaultMetadataPlugin(metadataPlugin);
+      }
+    }
+    if (latestPluginState.defaultAudioSourcePluginConfig == null) {
+      final audioPlugin = latestPluginState.plugins.firstWhereOrNull(
+        (plugin) => plugin.abilities.contains(PluginAbilities.audioSource),
+      );
+      if (audioPlugin != null) {
+        await setDefaultAudioSourcePlugin(audioPlugin);
       }
     }
   }

@@ -30,6 +30,26 @@ final telegramSourceFiltersProvider = FutureProvider<List<String>>((ref) async {
   return ref.read(telegramMediaServiceProvider).loadSourceFilters();
 });
 
+final telegramTrackCacheStatusProvider =
+    FutureProvider.autoDispose.family<TelegramTrackCacheStatus?, String>(
+  (ref, trackId) async {
+    ref.watch(telegramMediaRevisionProvider);
+    return ref.read(telegramMediaServiceProvider).loadCacheStatus(trackId);
+  },
+);
+
+class TelegramTrackCacheStatus {
+  final bool cached;
+  final String? error;
+
+  const TelegramTrackCacheStatus({
+    required this.cached,
+    this.error,
+  });
+
+  bool get failed => !cached;
+}
+
 class TelegramMediaService {
   static const _tracksKey = "telegram_media_tracks";
   static const _sourcesKey = "telegram_media_sources";
@@ -74,6 +94,29 @@ class TelegramMediaService {
         .where((track) => track.id == id)
         .map((track) => track.toMetadata())
         .firstOrNull;
+  }
+
+  Future<TelegramTrackCacheStatus?> loadCacheStatus(String id) async {
+    final record = (await _readStoredTracks()).firstWhereOrNull(
+      (track) => track.id == id,
+    );
+    if (record == null || !record.fileUrl.startsWith("telegram-mtproto://")) {
+      return null;
+    }
+
+    final cacheFile = await _mtprotoAudioCacheFile(record);
+    if (await _isUsableAudioCache(cacheFile, record)) {
+      return const TelegramTrackCacheStatus(cached: true);
+    }
+
+    if (record.cacheReady == false) {
+      return TelegramTrackCacheStatus(
+        cached: false,
+        error: record.cacheError,
+      );
+    }
+
+    return null;
   }
 
   Future<void> updateTrackMetadata(
@@ -204,12 +247,14 @@ class TelegramMediaService {
     await _writeStoredTracks(records);
     ref.read(telegramMediaRevisionProvider.notifier).state++;
 
-    return TelegramSyncResult(
-      total: records.length,
-      added: added,
-      scanned: (body["result"] as List).length,
-    );
-  }
+	    return TelegramSyncResult(
+	      total: records.length,
+	      added: added,
+	      scanned: (body["result"] as List).length,
+	      cached: 0,
+	      failed: 0,
+	    );
+	  }
 
   Future<TelegramSyncResult> syncUserSessionHistory() async {
     final auth = await ref.read(telegramAuthProvider.future);
@@ -221,8 +266,10 @@ class TelegramMediaService {
     final recordsById = {
       for (final track in await _readStoredTracks()) track.id: track,
     };
-    final tracks = await _mtproto.fetchAudioFromSources(sourceFilters);
-    var added = 0;
+	    final tracks = await _mtproto.fetchAudioFromSources(sourceFilters);
+	    var added = 0;
+	    var cached = 0;
+	    var failed = 0;
 
     for (final track in tracks) {
       final id = "telegram:mtproto:${track.documentId}";
@@ -239,8 +286,11 @@ class TelegramMediaService {
 	        coverUrl: coverUrl ?? previous?.coverUrl,
 	      );
 
-	      recordsById[id] =
-	          previous == null ? record : previous.mergeFresh(record);
+	      final merged = previous == null ? record : previous.mergeFresh(record);
+	      final prepared = await _prepareMtprotoAudioCache(merged);
+	      if (prepared.cacheReady == true) cached++;
+	      if (prepared.cacheReady == false) failed++;
+	      recordsById[id] = prepared;
 	    }
 
     final records = recordsById.values.toList()
@@ -249,11 +299,13 @@ class TelegramMediaService {
     ref.read(telegramMediaRevisionProvider.notifier).state++;
 
     return TelegramSyncResult(
-      total: records.length,
-      added: added,
-      scanned: tracks.length,
-    );
-  }
+	      total: records.length,
+	      added: added,
+	      scanned: tracks.length,
+	      cached: cached,
+	      failed: failed,
+	    );
+	  }
 
   Future<String> resolvePlayableUrl(String trackId) async {
     final record = (await _readStoredTracks()).firstWhereOrNull(
@@ -276,10 +328,13 @@ class TelegramMediaService {
 
 	    while (true) {
 	      final cacheFile = await _mtprotoAudioCacheFile(current);
-	      if (await cacheFile.exists()) {
-	        if (await cacheFile.length() > 0) {
-	          return cacheFile.uri.toString();
+	      if (await _isUsableAudioCache(cacheFile, current)) {
+	        if (current.cacheReady != true) {
+	          await _replaceStoredTrack(current.copyWithCache(cached: true));
 	        }
+	        return cacheFile.uri.toString();
+	      }
+	      if (await cacheFile.exists()) {
 	        await cacheFile.delete().catchError((_) => cacheFile);
 	      }
 
@@ -292,20 +347,82 @@ class TelegramMediaService {
 	        }
 	        await cacheFile.create(recursive: true);
 	        await cacheFile.writeAsBytes(bytes, flush: true);
+	        await _replaceStoredTrack(current.copyWithCache(cached: true));
 	        return cacheFile.uri.toString();
 	      } catch (error, stackTrace) {
 	        if (refreshed) {
+	          await _replaceStoredTrack(
+	            current.copyWithCache(cached: false, cacheError: error.toString()),
+	          );
 	          Error.throwWithStackTrace(error, stackTrace);
 	        }
 
 	        final updated = await _refreshMtprotoRecord(current);
 	        if (updated == null) {
+	          await _replaceStoredTrack(
+	            current.copyWithCache(cached: false, cacheError: error.toString()),
+	          );
 	          Error.throwWithStackTrace(error, stackTrace);
 	        }
 	        current = updated;
 	        refreshed = true;
 	      }
 	    }
+	  }
+
+	  Future<TelegramTrackRecord> _prepareMtprotoAudioCache(
+	    TelegramTrackRecord record,
+	  ) async {
+	    if (!record.fileUrl.startsWith("telegram-mtproto://")) return record;
+
+	    final cacheFile = await _mtprotoAudioCacheFile(record);
+	    if (await _isUsableAudioCache(cacheFile, record)) {
+	      return record.copyWithCache(cached: true);
+	    }
+	    if (await cacheFile.exists()) {
+	      await cacheFile.delete().catchError((_) => cacheFile);
+	    }
+
+	    try {
+	      final bytes = await _downloadMtprotoBytes(record);
+	      if (bytes.isEmpty) {
+	        throw const TelegramMediaException(
+	          "Telegram вернул пустой файл для этого трека",
+	        );
+	      }
+	      await cacheFile.create(recursive: true);
+	      await cacheFile.writeAsBytes(bytes, flush: true);
+	      return record.copyWithCache(cached: true);
+	    } catch (error) {
+	      return record.copyWithCache(
+	        cached: false,
+	        cacheError: error.toString(),
+	      );
+	    }
+	  }
+
+	  Future<bool> _isUsableAudioCache(
+	    File cacheFile,
+	    TelegramTrackRecord record,
+	  ) async {
+	    if (!await cacheFile.exists()) return false;
+
+	    final length = await cacheFile.length();
+	    if (length <= 0) return false;
+
+	    final expectedSize = record.mtprotoSize;
+	    final hasExpectedSize = expectedSize != null && expectedSize > 0;
+	    if (hasExpectedSize && length < expectedSize) {
+	      return false;
+	    }
+	    if (!hasExpectedSize &&
+	        record.cacheReady != true &&
+	        record.durationMs > 0 &&
+	        length <= 512 * 1024) {
+	      return false;
+	    }
+
+	    return true;
 	  }
 
 	  Future<List<int>> _downloadMtprotoBytes(TelegramTrackRecord record) async {
@@ -315,8 +432,7 @@ class TelegramMediaService {
 	    final size = record.mtprotoSize;
 	    if (documentId == null ||
 	        accessHash == null ||
-	        fileReference == null ||
-        size == null) {
+	        fileReference == null) {
       throw const TelegramMediaException(
 	        "У MTProto-трека нет данных документа",
 	      );
@@ -327,7 +443,7 @@ class TelegramMediaService {
 	      accessHash: accessHash,
 	      fileReferenceBase64: fileReference,
 	      dcId: record.mtprotoDcId,
-	      size: size,
+	      size: size ?? 0,
 	    );
 	  }
 
@@ -567,10 +683,13 @@ class TelegramTrackRecord {
   final int? mtprotoDocumentId;
   final int? mtprotoAccessHash;
   final String? mtprotoFileReference;
-  final int? mtprotoDcId;
-  final int? mtprotoSize;
-  final String? mtprotoThumbSize;
-  final DateTime addedAt;
+	  final int? mtprotoDcId;
+	  final int? mtprotoSize;
+	  final String? mtprotoThumbSize;
+	  final bool? cacheReady;
+	  final String? cacheError;
+	  final DateTime? cacheCheckedAt;
+	  final DateTime addedAt;
 
   const TelegramTrackRecord({
     required this.id,
@@ -593,11 +712,14 @@ class TelegramTrackRecord {
     this.mtprotoDocumentId,
     this.mtprotoAccessHash,
     this.mtprotoFileReference,
-    this.mtprotoDcId,
-    this.mtprotoSize,
-    this.mtprotoThumbSize,
-    required this.addedAt,
-  });
+	    this.mtprotoDcId,
+	    this.mtprotoSize,
+	    this.mtprotoThumbSize,
+	    this.cacheReady,
+	    this.cacheError,
+	    this.cacheCheckedAt,
+	    required this.addedAt,
+	  });
 
   factory TelegramTrackRecord.fromJson(Map<String, dynamic> json) {
     return TelegramTrackRecord(
@@ -621,12 +743,16 @@ class TelegramTrackRecord {
       mtprotoDocumentId: _asInt(json["mtproto_document_id"]),
       mtprotoAccessHash: _asInt(json["mtproto_access_hash"]),
       mtprotoFileReference: _string(json["mtproto_file_reference"]),
-      mtprotoDcId: _asInt(json["mtproto_dc_id"]),
-      mtprotoSize: _asInt(json["mtproto_size"]),
-      mtprotoThumbSize: _string(json["mtproto_thumb_size"]),
-      addedAt: DateTime.tryParse(json["added_at"]?.toString() ?? "") ??
-          DateTime.fromMillisecondsSinceEpoch(0),
-    );
+	      mtprotoDcId: _asInt(json["mtproto_dc_id"]),
+	      mtprotoSize: _asInt(json["mtproto_size"]),
+	      mtprotoThumbSize: _string(json["mtproto_thumb_size"]),
+	      cacheReady: _asBool(json["cache_ready"]),
+	      cacheError: _string(json["cache_error"]),
+	      cacheCheckedAt:
+	          DateTime.tryParse(json["cache_checked_at"]?.toString() ?? ""),
+	      addedAt: DateTime.tryParse(json["added_at"]?.toString() ?? "") ??
+	          DateTime.fromMillisecondsSinceEpoch(0),
+	    );
   }
 
   Map<String, dynamic> toJson() {
@@ -651,18 +777,21 @@ class TelegramTrackRecord {
       "mtproto_document_id": mtprotoDocumentId,
       "mtproto_access_hash": mtprotoAccessHash,
       "mtproto_file_reference": mtprotoFileReference,
-      "mtproto_dc_id": mtprotoDcId,
-      "mtproto_size": mtprotoSize,
-      "mtproto_thumb_size": mtprotoThumbSize,
-      "added_at": addedAt.toIso8601String(),
-    };
-  }
+	      "mtproto_dc_id": mtprotoDcId,
+	      "mtproto_size": mtprotoSize,
+	      "mtproto_thumb_size": mtprotoThumbSize,
+	      "cache_ready": cacheReady,
+	      "cache_error": cacheError,
+	      "cache_checked_at": cacheCheckedAt?.toIso8601String(),
+	      "added_at": addedAt.toIso8601String(),
+	    };
+	  }
 
-	  TelegramTrackRecord copyWith({
-	    String? manualName,
-	    String? manualArtist,
-	    String? manualAlbum,
-	    String? coverUrl,
+  TelegramTrackRecord copyWith({
+    String? manualName,
+    String? manualArtist,
+    String? manualAlbum,
+    String? coverUrl,
   }) {
     return TelegramTrackRecord(
       id: id,
@@ -688,9 +817,47 @@ class TelegramTrackRecord {
       mtprotoDcId: mtprotoDcId,
       mtprotoSize: mtprotoSize,
       mtprotoThumbSize: mtprotoThumbSize,
-	      addedAt: addedAt,
-	    );
-	  }
+      cacheReady: cacheReady,
+      cacheError: cacheError,
+      cacheCheckedAt: cacheCheckedAt,
+      addedAt: addedAt,
+    );
+  }
+
+  TelegramTrackRecord copyWithCache({
+    required bool cached,
+    String? cacheError,
+  }) {
+    return TelegramTrackRecord(
+      id: id,
+      name: name,
+      artist: artist,
+      album: album,
+      chatId: chatId,
+      chatTitle: chatTitle,
+      messageId: messageId,
+      durationMs: durationMs,
+      fileUrl: fileUrl,
+      coverUrl: coverUrl,
+      coverWidth: coverWidth,
+      coverHeight: coverHeight,
+      mimeType: mimeType,
+      fileName: fileName,
+      manualName: manualName,
+      manualArtist: manualArtist,
+      manualAlbum: manualAlbum,
+      mtprotoDocumentId: mtprotoDocumentId,
+      mtprotoAccessHash: mtprotoAccessHash,
+      mtprotoFileReference: mtprotoFileReference,
+      mtprotoDcId: mtprotoDcId,
+      mtprotoSize: mtprotoSize,
+      mtprotoThumbSize: mtprotoThumbSize,
+      cacheReady: cached,
+      cacheError: cached ? null : cacheError,
+      cacheCheckedAt: DateTime.now(),
+      addedAt: addedAt,
+    );
+  }
 
 	  TelegramTrackRecord mergeFresh(TelegramTrackRecord fresh) {
 	    return TelegramTrackRecord(
@@ -718,6 +885,9 @@ class TelegramTrackRecord {
 	      mtprotoDcId: fresh.mtprotoDcId ?? mtprotoDcId,
 	      mtprotoSize: fresh.mtprotoSize ?? mtprotoSize,
 	      mtprotoThumbSize: fresh.mtprotoThumbSize ?? mtprotoThumbSize,
+	      cacheReady: fresh.cacheReady ?? cacheReady,
+	      cacheError: fresh.cacheError ?? cacheError,
+	      cacheCheckedAt: fresh.cacheCheckedAt ?? cacheCheckedAt,
 	      addedAt: fresh.addedAt,
 	    );
 	  }
@@ -767,11 +937,15 @@ class TelegramSyncResult {
   final int total;
   final int added;
   final int scanned;
+  final int cached;
+  final int failed;
 
   const TelegramSyncResult({
     required this.total,
     required this.added,
     required this.scanned,
+    required this.cached,
+    required this.failed,
   });
 }
 
@@ -892,6 +1066,15 @@ int? _asInt(Object? value) {
   if (value is int) return value;
   if (value is num) return value.toInt();
   return int.tryParse(value?.toString() ?? "");
+}
+
+bool? _asBool(Object? value) {
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  final string = value?.toString().trim().toLowerCase();
+  if (string == "true" || string == "1") return true;
+  if (string == "false" || string == "0") return false;
+  return null;
 }
 
 String? _string(Object? value) {

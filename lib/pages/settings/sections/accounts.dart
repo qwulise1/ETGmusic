@@ -24,15 +24,6 @@ class SettingsAccountSection extends HookConsumerWidget {
       children: [
         const TelegramAccountTile(),
         ListTile(
-          leading: const Icon(SpotubeIcons.extensions),
-          title: Text(context.l10n.plugins),
-          subtitle: Text(context.l10n.configure_plugins),
-          onTap: () {
-            context.pushRoute(const SettingsMetadataProviderRoute());
-          },
-          trailing: const Icon(SpotubeIcons.angleRight),
-        ),
-        ListTile(
           leading: const Icon(SpotubeIcons.music),
           title: Text(context.l10n.audio_scrobblers),
           onTap: () {
@@ -107,9 +98,12 @@ class TelegramAccountTile extends HookConsumerWidget {
                 .syncUserSessionHistory()
             : await ref.read(telegramMediaServiceProvider).syncBotUpdates();
         if (!context.mounted) return;
+        final cacheText = result.cached + result.failed > 0
+            ? " · скачано ${result.cached}, ошибок ${result.failed}"
+            : "";
         _showTelegramToast(
           context,
-          "Синхронизация: +${result.added}, всего ${result.total}",
+          "Синхронизация: +${result.added}, всего ${result.total}$cacheText",
         );
       } catch (e) {
         if (!context.mounted) return;
@@ -205,7 +199,7 @@ class TelegramAccountTile extends HookConsumerWidget {
             leading: const Icon(SpotubeIcons.user),
             title: const Text("Telegram-сессия (MTProto)").semiBold(),
             subtitle: Text(
-              "Вход через номер, код Telegram и 2FA. В active sessions устройство отправляется как ETGmusic; чтобы приложение в Telegram называлось ETGmusic, создай API app с таким названием на my.telegram.org.",
+              "Вход по номеру телефона. ETGmusic читает выбранные чаты и каналы через локальную MTProto-сессию; код и 2FA вводятся здесь.",
               style: context.theme.typography.xSmall.copyWith(
                 color: context.theme.colorScheme.mutedForeground,
               ),
@@ -236,7 +230,7 @@ class TelegramAccountTile extends HookConsumerWidget {
           ],
           if (value.isUserSessionConnected)
             Text(
-              "Telegram-сессия подключена, auth key сохранен локально. Для отображения в Telegram используй API app с названием ETGmusic.",
+              "Сессия активна. Ключ хранится на устройстве и будет использоваться после обновлений APK.",
               style: context.theme.typography.xSmall.copyWith(
                 color: context.theme.colorScheme.mutedForeground,
               ),
