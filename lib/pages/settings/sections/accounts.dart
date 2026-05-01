@@ -9,7 +9,6 @@ import 'package:etgmusic/collections/routes.gr.dart';
 import 'package:etgmusic/collections/spotube_icons.dart';
 import 'package:etgmusic/modules/settings/section_card_with_heading.dart';
 import 'package:etgmusic/extensions/context.dart';
-import 'package:etgmusic/provider/scrobbler/scrobbler.dart';
 import 'package:etgmusic/provider/telegram/telegram_auth.dart';
 import 'package:etgmusic/services/telegram/telegram_media.dart';
 
@@ -18,8 +17,6 @@ class SettingsAccountSection extends HookConsumerWidget {
 
   @override
   Widget build(context, ref) {
-    final scrobbler = ref.watch(scrobblerProvider);
-
     return SectionCardWithHeading(
       heading: context.l10n.account,
       children: [
@@ -33,26 +30,14 @@ class SettingsAccountSection extends HookConsumerWidget {
           },
           trailing: const Icon(SpotubeIcons.angleRight),
         ),
-        if (scrobbler.asData?.value == null)
-          ListTile(
-            leading: const Icon(SpotubeIcons.music),
-            title: Text(context.l10n.audio_scrobblers),
-            onTap: () {
-              context.pushRoute(const SettingsScrobblingRoute());
-            },
-            trailing: const Icon(SpotubeIcons.angleRight),
-          )
-        else
-          ListTile(
-            leading: const Icon(SpotubeIcons.lastFm),
-            title: Text(context.l10n.disconnect_lastfm),
-            trailing: Button.destructive(
-              onPressed: () {
-                ref.read(scrobblerProvider.notifier).logout();
-              },
-              child: Text(context.l10n.disconnect),
-            ),
-          ),
+        ListTile(
+          leading: const Icon(SpotubeIcons.music),
+          title: Text(context.l10n.audio_scrobblers),
+          onTap: () {
+            context.pushRoute(const SettingsScrobblingRoute());
+          },
+          trailing: const Icon(SpotubeIcons.angleRight),
+        ),
       ],
     );
   }
@@ -65,19 +50,18 @@ class TelegramAccountTile extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(telegramAuthProvider);
     final filters = ref.watch(telegramSourceFiltersProvider);
-    final tracks = ref.watch(telegramMediaTracksProvider);
     final tokenController = useTextEditingController();
     final sourcesController = useTextEditingController();
     final showToken = useState(false);
     final syncing = useState(false);
+    final filtersText = filters.asData?.value.join("\n") ?? "";
 
     useEffect(() {
-      final value = filters.asData?.value;
-      if (value != null && sourcesController.text.isEmpty) {
-        sourcesController.text = value.join("\n");
+      if (filtersText.isNotEmpty && sourcesController.text.isEmpty) {
+        sourcesController.text = filtersText;
       }
       return null;
-    }, [filters.asData?.value.join("\n")]);
+    }, [filtersText]);
 
     Future<void> connect() async {
       try {
@@ -197,15 +181,13 @@ class TelegramAccountTile extends HookConsumerWidget {
                       : const Icon(SpotubeIcons.login),
                   child: const Text("Подключить Telegram"),
                 ),
-                Expanded(
-                  child: Text(
-                    "Токен хранится локально. Для каналов и групп добавь бота туда, где ETGmusic должен искать треки.",
-                    style: context.theme.typography.xSmall.copyWith(
-                      color: context.theme.colorScheme.mutedForeground,
-                    ),
-                  ),
-                ),
               ],
+            ),
+            Text(
+              "Токен хранится локально. Для каналов и групп добавь бота туда, где ETGmusic должен искать треки.",
+              style: context.theme.typography.xSmall.copyWith(
+                color: context.theme.colorScheme.mutedForeground,
+              ),
             ),
           ],
           if (value.isConnected) ...[
@@ -238,7 +220,7 @@ class TelegramAccountTile extends HookConsumerWidget {
               ],
             ),
             Text(
-              "В библиотеке Telegram: ${tracks.asData?.value.length ?? 0}. Если поле источников пустое, берутся все каналы и группы, где бот видит новые аудио.",
+              "Если поле источников пустое, берутся все каналы и группы, где бот видит новые аудио.",
               style: context.theme.typography.xSmall.copyWith(
                 color: context.theme.colorScheme.mutedForeground,
               ),
