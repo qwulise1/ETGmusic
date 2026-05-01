@@ -188,40 +188,69 @@ class TelegramMtprotoService {
 
   Future<List<TelegramMtprotoTrack>> fetchAudioFromSources(
     List<String> sourceFilters, {
-    int limitPerSource = 100,
+    int pageSize = 100,
+    int maxMessagesPerSource = 10000,
   }) async {
     final apiId = _readApiId();
     final client = await _connect(apiId: apiId);
     final peers = await _resolvePeers(client, sourceFilters);
     final tracks = <TelegramMtprotoTrack>[];
+    final effectivePageSize = pageSize <= 0
+        ? 100
+        : pageSize > 100
+            ? 100
+            : pageSize;
+    final effectiveMaxMessages =
+        maxMessagesPerSource <= 0 ? 10000 : maxMessagesPerSource;
 
     for (final peer in peers) {
-      final response = await _telegramCall(
-        client.messages.getHistory(
-          peer: peer.peer,
-          offsetId: 0,
-          offsetDate: DateTime.fromMillisecondsSinceEpoch(0),
-          addOffset: 0,
-          limit: limitPerSource,
-          maxId: 0,
-          minId: 0,
-          hash: 0,
-        ),
-        "Telegram не ответил на чтение истории ${peer.title}",
-      );
+      var offsetId = 0;
+      var scannedMessages = 0;
 
-      final error = response.error;
-      if (error != null) {
-        AppLogger.log.w(
-          "Telegram MTProto history failed for ${peer.title}: "
-          "${error.errorMessage}",
+      while (scannedMessages < effectiveMaxMessages) {
+        final remainingMessages = effectiveMaxMessages - scannedMessages;
+        final requestLimit = remainingMessages < effectivePageSize
+            ? remainingMessages
+            : effectivePageSize;
+        final response = await _telegramCall(
+          client.messages.getHistory(
+            peer: peer.peer,
+            offsetId: offsetId,
+            offsetDate: DateTime.fromMillisecondsSinceEpoch(0),
+            addOffset: 0,
+            limit: requestLimit,
+            maxId: 0,
+            minId: 0,
+            hash: 0,
+          ),
+          "Telegram не ответил на чтение истории ${peer.title}",
         );
-        continue;
-      }
 
-      for (final message in _messagesFrom(response.result)) {
-        final track = _trackFromMessage(message, peer);
-        if (track != null) tracks.add(track);
+        final error = response.error;
+        if (error != null) {
+          AppLogger.log.w(
+            "Telegram MTProto history failed for ${peer.title}: "
+            "${error.errorMessage}",
+          );
+          break;
+        }
+
+        final messages = _messagesFrom(response.result).toList();
+        if (messages.isEmpty) break;
+
+        scannedMessages += messages.length;
+        for (final message in messages) {
+          final track = _trackFromMessage(message, peer);
+          if (track != null) tracks.add(track);
+        }
+
+        final nextOffsetId = messages
+            .map((message) => message.id)
+            .reduce((left, right) => left < right ? left : right);
+        if (nextOffsetId <= 0 || nextOffsetId == offsetId) break;
+
+        offsetId = nextOffsetId;
+        if (messages.length < requestLimit) break;
       }
     }
 
