@@ -1,5 +1,5 @@
 import 'package:auto_route/auto_route.dart';
-import 'package:flutter/material.dart' show ListTile, Wrap;
+import 'package:flutter/material.dart' show Divider, ListTile, Wrap;
 
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -57,11 +57,11 @@ class TelegramAccountTile extends HookConsumerWidget {
     final filtersText = filters.asData?.value.join("\n") ?? "";
 
     useEffect(() {
-      if (filtersText.isNotEmpty && sourcesController.text.isEmpty) {
+      if (filters.asData != null && sourcesController.text != filtersText) {
         sourcesController.text = filtersText;
       }
       return null;
-    }, [filtersText]);
+    }, [filtersText, filters.asData != null]);
 
     Future<void> connect() async {
       try {
@@ -83,17 +83,21 @@ class TelegramAccountTile extends HookConsumerWidget {
       _showTelegramToast(context, "Telegram отключен");
     }
 
-    Future<void> saveSources() async {
-      await ref
+    Future<List<String>> saveSources({bool silent = false}) async {
+      final saved = await ref
           .read(telegramMediaServiceProvider)
           .setSourceFiltersFromText(sourcesController.text);
-      if (!context.mounted) return;
-      _showTelegramToast(context, "Источники Telegram сохранены");
+      sourcesController.text = saved.join("\n");
+      if (context.mounted && !silent) {
+        _showTelegramToast(context, "Источники Telegram сохранены");
+      }
+      return saved;
     }
 
     Future<void> syncTelegram() async {
       try {
         syncing.value = true;
+        await saveSources(silent: true);
         final result =
             await ref.read(telegramMediaServiceProvider).syncBotUpdates();
         if (!context.mounted) return;
@@ -190,6 +194,17 @@ class TelegramAccountTile extends HookConsumerWidget {
               ),
             ),
           ],
+          const Divider(),
+          Basic(
+            leading: const Icon(SpotubeIcons.user),
+            title: const Text("Telegram-сессия (MTProto)").semiBold(),
+            subtitle: Text(
+              "Полный вход через аккаунт нужен для чтения старой истории каналов и личных чатов. Сейчас активен рабочий Bot API-режим; MTProto не показываю как фейковую кнопку, он будет отдельным реальным подключением.",
+              style: context.theme.typography.xSmall.copyWith(
+                color: context.theme.colorScheme.mutedForeground,
+              ),
+            ),
+          ),
           if (value.isConnected) ...[
             TextField(
               controller: sourcesController,
@@ -202,7 +217,7 @@ class TelegramAccountTile extends HookConsumerWidget {
               children: [
                 Button.secondary(
                   enabled: !loading,
-                  onPressed: saveSources,
+                  onPressed: () => saveSources(),
                   leading: const Icon(SpotubeIcons.save),
                   child: const Text("Сохранить источники"),
                 ),

@@ -3,6 +3,7 @@ import 'package:etgmusic/models/metadata/metadata.dart';
 import 'package:etgmusic/provider/metadata_plugin/core/auth.dart';
 import 'package:etgmusic/provider/metadata_plugin/utils/common.dart';
 import 'package:etgmusic/provider/metadata_plugin/utils/paginated.dart';
+import 'package:etgmusic/services/telegram/telegram_media.dart';
 
 class MetadataPluginSavedTracksNotifier
     extends AutoDisposePaginatedAsyncNotifier<SpotubeFullTrackObject> {
@@ -21,6 +22,7 @@ class MetadataPluginSavedTracksNotifier
   @override
   build() async {
     ref.cacheFor();
+    ref.watch(telegramMediaRevisionProvider);
 
     await ref.watch(metadataPluginAuthenticatedProvider.future);
     return await fetch(0, 20);

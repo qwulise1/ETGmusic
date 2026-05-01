@@ -39,16 +39,21 @@ class TelegramMediaService {
     return raw?.where((value) => value.trim().isNotEmpty).toList() ?? const [];
   }
 
-  Future<void> setSourceFiltersFromText(String raw) async {
-    final values = raw
+  Future<List<String>> setSourceFiltersFromText(String raw) async {
+    final values = _normalizeSourceFilters(raw);
+
+    await KVStoreService.sharedPreferences.setStringList(_sourcesKey, values);
+    ref.read(telegramMediaRevisionProvider.notifier).state++;
+    return values;
+  }
+
+  List<String> _normalizeSourceFilters(String raw) {
+    return raw
         .split(RegExp(r"[\n,;]+"))
         .map((value) => value.trim())
         .where((value) => value.isNotEmpty)
         .toSet()
         .toList();
-
-    await KVStoreService.sharedPreferences.setStringList(_sourcesKey, values);
-    ref.read(telegramMediaRevisionProvider.notifier).state++;
   }
 
   Future<List<SpotubeFullTrackObject>> loadTracks() async {
@@ -307,15 +312,18 @@ class TelegramTrackRecord {
   }
 
   SpotubeFullTrackObject toMetadata() {
+    final parsed = _isGenericArtist(artist) ? _splitArtistTitle(name) : null;
+    final effectiveName = parsed?.title ?? name;
+    final effectiveArtist = parsed?.artist ?? artist;
     final artistObject = SpotubeSimpleArtistObject(
-      id: "telegram:$chatId:$artist",
-      name: artist,
+      id: "telegram:$chatId:$effectiveArtist",
+      name: effectiveArtist,
       externalUri: "telegram:$chatId",
     );
 
     return SpotubeFullTrackObject(
       id: id,
-      name: name,
+      name: effectiveName,
       externalUri: fileUrl,
       artists: [artistObject],
       album: SpotubeSimpleAlbumObject(
@@ -374,16 +382,25 @@ class _TelegramMedia {
   });
 
   factory _TelegramMedia.fromAudio(Map<String, dynamic> audio) {
+    final fileName = _string(audio["file_name"]);
+    final basename = _basename(fileName);
+    final rawTitle = _string(audio["title"]) ?? basename ?? "Telegram audio";
+    final performer = _string(audio["performer"]);
+    final parsedTitle = _splitArtistTitle(rawTitle);
+    final parsedBasename =
+        basename == rawTitle ? null : _splitArtistTitle(basename);
+    final parsed = parsedBasename ?? parsedTitle;
+    final title =
+        performer == null && parsedTitle != null ? parsedTitle.title : rawTitle;
+
     return _TelegramMedia(
       fileId: audio["file_id"].toString(),
       fileUniqueId: _string(audio["file_unique_id"]),
-      title: _string(audio["title"]) ??
-          _basename(_string(audio["file_name"])) ??
-          "Telegram audio",
-      artist: _string(audio["performer"]) ?? "Telegram",
+      title: title,
+      artist: performer ?? parsed?.artist ?? "Telegram",
       durationMs: (_asInt(audio["duration"]) ?? 0) * 1000,
       mimeType: _string(audio["mime_type"]),
-      fileName: _string(audio["file_name"]),
+      fileName: fileName,
     );
   }
 
@@ -401,11 +418,14 @@ class _TelegramMedia {
 
     if (!isAudio || document["file_id"] == null) return null;
 
+    final title = _basename(fileName) ?? "Telegram audio";
+    final parsed = _splitArtistTitle(title);
+
     return _TelegramMedia(
       fileId: document["file_id"].toString(),
       fileUniqueId: _string(document["file_unique_id"]),
-      title: _basename(fileName) ?? "Telegram audio",
-      artist: "Telegram",
+      title: parsed?.title ?? title,
+      artist: parsed?.artist ?? "Telegram",
       durationMs: 0,
       mimeType: mimeType.isEmpty ? null : mimeType,
       fileName: fileName,
@@ -413,11 +433,14 @@ class _TelegramMedia {
   }
 
   factory _TelegramMedia.fromVideo(Map<String, dynamic> video) {
+    final title = _basename(_string(video["file_name"])) ?? "Telegram video";
+    final parsed = _splitArtistTitle(title);
+
     return _TelegramMedia(
       fileId: video["file_id"].toString(),
       fileUniqueId: _string(video["file_unique_id"]),
-      title: _basename(_string(video["file_name"])) ?? "Telegram video",
-      artist: "Telegram",
+      title: parsed?.title ?? title,
+      artist: parsed?.artist ?? "Telegram",
       durationMs: (_asInt(video["duration"]) ?? 0) * 1000,
       mimeType: _string(video["mime_type"]),
       fileName: _string(video["file_name"]),
@@ -442,4 +465,34 @@ String? _basename(String? fileName) {
   final cleaned = fileName.split("/").last;
   final dot = cleaned.lastIndexOf(".");
   return dot <= 0 ? cleaned : cleaned.substring(0, dot);
+}
+
+bool _isGenericArtist(String value) {
+  return value.trim().toLowerCase() == "telegram";
+}
+
+_ParsedTrackName? _splitArtistTitle(String? value) {
+  final text = value?.trim();
+  if (text == null || text.isEmpty) return null;
+
+  final match = RegExp(r"^(.+?)\s+(?:-|–|—|:)\s+(.+)$").firstMatch(text);
+  if (match == null) return null;
+
+  final artist = match.group(1)?.trim();
+  final title = match.group(2)?.trim();
+  if (artist == null || title == null || artist.isEmpty || title.isEmpty) {
+    return null;
+  }
+
+  return _ParsedTrackName(artist: artist, title: title);
+}
+
+class _ParsedTrackName {
+  final String artist;
+  final String title;
+
+  const _ParsedTrackName({
+    required this.artist,
+    required this.title,
+  });
 }

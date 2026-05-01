@@ -19,7 +19,7 @@ MetadataPlugin createTelegramMetadataPlugin(
     audioSource: _TelegramAudioSourceEndpoint(),
     album: _TelegramAlbumEndpoint(ref),
     artist: _TelegramArtistEndpoint(ref),
-    browse: _TelegramBrowseEndpoint(ref, user),
+    browse: _TelegramBrowseEndpoint(),
     search: _TelegramSearchEndpoint(ref, user),
     playlist: _TelegramPlaylistEndpoint(ref, user),
     track: _TelegramTrackEndpoint(ref),
@@ -315,29 +315,12 @@ class _TelegramPlaylistEndpoint {
 }
 
 class _TelegramBrowseEndpoint {
-  final Ref ref;
-  final _TelegramUserEndpoint userEndpoint;
-
-  _TelegramBrowseEndpoint(this.ref, this.userEndpoint);
-
   Future<SpotubePaginationResponseObject<SpotubeBrowseSectionObject<Object>>>
       sections({
     int? offset,
     int? limit,
   }) async {
-    return _paginate(
-      [
-        SpotubeBrowseSectionObject<Object>(
-          id: _telegramSectionId,
-          title: "Telegram",
-          externalUri: "tg://resolve",
-          browseMore: true,
-          items: [_telegramPlaylist(userEndpoint.owner())],
-        ),
-      ],
-      offset: offset,
-      limit: limit,
-    );
+    return _paginate(const [], offset: offset, limit: limit);
   }
 
   Future<SpotubePaginationResponseObject<Object>> sectionItems(
@@ -345,11 +328,7 @@ class _TelegramBrowseEndpoint {
     int? offset,
     int? limit,
   }) async {
-    return _paginate<Object>(
-      await ref.read(telegramMediaTracksProvider.future),
-      offset: offset,
-      limit: limit,
-    );
+    return _paginate<Object>(const [], offset: offset, limit: limit);
   }
 }
 
@@ -519,8 +498,6 @@ class _TelegramCoreEndpoint {
 }
 
 const _telegramPlaylistId = "telegram-library";
-const _telegramSectionId = "telegram-section";
-
 SpotubeSimplePlaylistObject _telegramPlaylist(SpotubeUserObject owner) {
   return SpotubeSimplePlaylistObject(
     id: _telegramPlaylistId,

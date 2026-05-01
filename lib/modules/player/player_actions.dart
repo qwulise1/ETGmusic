@@ -80,8 +80,9 @@ class PlayerActions extends HookConsumerWidget {
       [context.l10n],
     );
 
-    var customHoursEnabled =
-        sleepTimer == null || sleepTimerEntries.values.contains(sleepTimer);
+    final customTimerLabel = sleepTimer == null
+        ? context.l10n.custom_hours
+        : "Осталось ${sleepTimer.format(abbreviated: true)}";
     return Row(
       mainAxisAlignment: mainAxisAlignment,
       children: [
@@ -207,9 +208,9 @@ class PlayerActions extends HookConsumerWidget {
                 child: Text(entry.key),
               ),
             AdaptiveMenuButton(
-              enabled: customHoursEnabled,
+              enabled: true,
               onPressed: (context) async {
-                final currentTime = TimeOfDay.now();
+                final now = DateTime.now();
                 final time = await showDialog<TimeOfDay?>(
                   context: context,
                   builder: (context) => HookBuilder(builder: (context) {
@@ -245,19 +246,21 @@ class PlayerActions extends HookConsumerWidget {
                 );
 
                 if (time != null) {
-                  sleepTimerNotifier.setSleepTimer(
-                    Duration(
-                      hours: (time.hour - currentTime.hour).abs(),
-                      minutes: (time.minute - currentTime.minute).abs(),
-                    ),
+                  final selectedToday = DateTime(
+                    now.year,
+                    now.month,
+                    now.day,
+                    time.hour,
+                    time.minute,
                   );
+                  final endsAt = selectedToday.isAfter(now)
+                      ? selectedToday
+                      : selectedToday.add(const Duration(days: 1));
+
+                  sleepTimerNotifier.setSleepTimer(endsAt.difference(now));
                 }
               },
-              child: Text(
-                customHoursEnabled
-                    ? context.l10n.custom_hours
-                    : sleepTimer.format(abbreviated: true),
-              ),
+              child: Text(customTimerLabel),
             ),
             AdaptiveMenuButton(
               value: Duration.zero,

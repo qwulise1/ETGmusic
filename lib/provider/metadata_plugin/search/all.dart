@@ -2,10 +2,12 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:etgmusic/models/metadata/metadata.dart';
 import 'package:etgmusic/provider/metadata_plugin/metadata_plugin_provider.dart';
 import 'package:etgmusic/services/metadata/errors/exceptions.dart';
+import 'package:etgmusic/services/telegram/telegram_media.dart';
 
 final metadataPluginSearchAllProvider =
     FutureProvider.autoDispose.family<SpotubeSearchResponseObject, String>(
   (ref, query) async {
+    ref.watch(telegramMediaRevisionProvider);
     final metadataPlugin = await ref.watch(metadataPluginProvider.future);
 
     if (metadataPlugin == null) {
@@ -17,6 +19,7 @@ final metadataPluginSearchAllProvider =
 );
 
 final metadataPluginSearchChipsProvider = FutureProvider((ref) async {
+  ref.watch(telegramMediaRevisionProvider);
   final metadataPlugin = await ref.watch(metadataPluginProvider.future);
 
   if (metadataPlugin == null) {

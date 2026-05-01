@@ -2,6 +2,7 @@ import 'package:riverpod/riverpod.dart';
 import 'package:etgmusic/models/metadata/metadata.dart';
 import 'package:etgmusic/provider/metadata_plugin/core/auth.dart';
 import 'package:etgmusic/provider/metadata_plugin/utils/paginated.dart';
+import 'package:etgmusic/services/telegram/telegram_media.dart';
 
 class MetadataPluginSavedAlbumNotifier
     extends PaginatedAsyncNotifier<SpotubeSimpleAlbumObject> {
@@ -18,6 +19,7 @@ class MetadataPluginSavedAlbumNotifier
 
   @override
   build() async {
+    ref.watch(telegramMediaRevisionProvider);
     await ref.watch(metadataPluginAuthenticatedProvider.future);
     return await fetch(0, 20);
   }

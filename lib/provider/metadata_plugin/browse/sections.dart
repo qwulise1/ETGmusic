@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:etgmusic/models/metadata/metadata.dart';
 import 'package:etgmusic/provider/metadata_plugin/core/auth.dart';
 import 'package:etgmusic/provider/metadata_plugin/utils/paginated.dart';
+import 'package:etgmusic/services/telegram/telegram_media.dart';
 
 class MetadataPluginBrowseSectionsNotifier
     extends PaginatedAsyncNotifier<SpotubeBrowseSectionObject<Object>> {
@@ -19,6 +20,7 @@ class MetadataPluginBrowseSectionsNotifier
 
   @override
   build() async {
+    ref.watch(telegramMediaRevisionProvider);
     ref.watch(metadataPluginAuthenticatedProvider);
     return await fetch(0, 20);
   }

@@ -20,42 +20,103 @@ class SyncedLyricsNotifier
   /// Thanks for their generous public API
   Future<SubtitleSimple> getLRCLibLyrics() async {
     final packageInfo = await PackageInfo.fromPlatform();
-
-    final res = await globalDio.getUri(
-      Uri(
-        scheme: "https",
-        host: "lrclib.net",
-        path: "/api/get",
-        queryParameters: {
-          "artist_name": _track.artists.first.name,
-          "track_name": _track.name,
-          "album_name": _track.album.name,
-          if (_track.durationMs > 0)
-            "duration": (_track.durationMs / 1000).toInt().toString(),
-        },
-      ),
-      options: Options(
-        headers: {
-          "User-Agent":
-              "ETGmusic v${packageInfo.version} (https://github.com/qwulise1/ETGmusic)"
-        },
-        responseType: ResponseType.json,
-      ),
+    final options = Options(
+      headers: {
+        "User-Agent":
+            "ETGmusic v${packageInfo.version} (https://github.com/qwulise1/ETGmusic)"
+      },
+      responseType: ResponseType.json,
     );
+    final queries = _lyricsQueries();
 
-    if (res.statusCode != 200) {
-      return SubtitleSimple(
-        lyrics: [],
-        name: _track.name,
-        uri: res.realUri,
-        rating: 0,
-        provider: "LRCLib",
-      );
+    for (final query in queries) {
+      final result = await _fetchLrcLibExact(query, options);
+      if (result != null) return result;
     }
 
-    final json = res.data as Map<String, dynamic>;
+    for (final query in queries) {
+      final result = await _fetchLrcLibSearch(query, options);
+      if (result != null) return result;
+    }
 
-    final syncedLyricsRaw = json["syncedLyrics"] as String?;
+    return SubtitleSimple(
+      lyrics: [],
+      name: _track.name,
+      uri: Uri.https("lrclib.net", "/api/search"),
+      rating: 0,
+      provider: "LRCLib",
+    );
+  }
+
+  Future<SubtitleSimple?> _fetchLrcLibExact(
+    _LyricsQuery query,
+    Options options,
+  ) async {
+    final parameters = query.exactParameters();
+    if (parameters == null) return null;
+
+    try {
+      final res = await globalDio.getUri(
+        Uri(
+          scheme: "https",
+          host: "lrclib.net",
+          path: "/api/get",
+          queryParameters: parameters,
+        ),
+        options: options,
+      );
+
+      final data = res.data;
+      if (data is! Map) return null;
+      return _subtitleFromJson(data.cast<String, dynamic>(), res.realUri);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<SubtitleSimple?> _fetchLrcLibSearch(
+    _LyricsQuery query,
+    Options options,
+  ) async {
+    final parameters = query.searchParameters();
+    if (parameters == null) return null;
+
+    try {
+      final res = await globalDio.getUri(
+        Uri(
+          scheme: "https",
+          host: "lrclib.net",
+          path: "/api/search",
+          queryParameters: parameters,
+        ),
+        options: options,
+      );
+
+      final data = res.data;
+      if (data is! List) return null;
+
+      for (final item in data.whereType<Map>()) {
+        final subtitle = _subtitleFromJson(
+          item.cast<String, dynamic>(),
+          res.realUri,
+          fallbackRating: 75,
+        );
+        if (subtitle?.lyrics.isNotEmpty == true) return subtitle;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  SubtitleSimple? _subtitleFromJson(
+    Map<String, dynamic> json,
+    Uri uri, {
+    int fallbackRating = 100,
+  }) {
+    final name =
+        _string(json["trackName"]) ?? _string(json["name"]) ?? _track.name;
+    final syncedLyricsRaw = _string(json["syncedLyrics"]);
     final syncedLyrics = syncedLyricsRaw?.isNotEmpty == true
         ? Lrc.parse(syncedLyricsRaw!)
             .lyrics
@@ -66,25 +127,70 @@ class SyncedLyricsNotifier
     if (syncedLyrics?.isNotEmpty == true) {
       return SubtitleSimple(
         lyrics: syncedLyrics!,
-        name: _track.name,
-        uri: res.realUri,
-        rating: 100,
+        name: name,
+        uri: uri,
+        rating: fallbackRating,
         provider: "LRCLib",
       );
     }
 
-    final plainLyrics = (json["plainLyrics"] as String)
+    final plainLyricsRaw = _string(json["plainLyrics"]);
+    if (plainLyricsRaw == null || plainLyricsRaw.isEmpty) return null;
+
+    final plainLyrics = plainLyricsRaw
         .split("\n")
         .map((line) => LyricSlice(text: line, time: Duration.zero))
         .toList();
 
     return SubtitleSimple(
       lyrics: plainLyrics,
-      name: _track.name,
-      uri: res.realUri,
+      name: name,
+      uri: uri,
       rating: 0,
       provider: "LRCLib",
     );
+  }
+
+  List<_LyricsQuery> _lyricsQueries() {
+    final artist = _track.artists.isEmpty ? "" : _track.artists.first.name;
+    final title = _track.name;
+    final album =
+        _isGenericTelegramName(_track.album.name) ? null : _track.album.name;
+    final duration =
+        _track.durationMs > 0 ? (_track.durationMs / 1000).round() : null;
+    final parsed = _splitArtistTitle(title);
+    final cleanedTitle = _cleanLyricsTerm(parsed?.title ?? title);
+    final cleanedArtist = _cleanLyricsTerm(parsed?.artist ?? artist);
+    final queryArtist =
+        _isGenericTelegramName(cleanedArtist) ? "" : cleanedArtist;
+
+    final queries = [
+      _LyricsQuery(
+        trackName: title,
+        artistName: artist,
+        albumName: album,
+        duration: duration,
+      ),
+      _LyricsQuery(
+        trackName: cleanedTitle,
+        artistName: cleanedArtist,
+        albumName: album,
+      ),
+      _LyricsQuery(
+        trackName: cleanedTitle,
+        artistName: cleanedArtist,
+      ),
+      if (parsed != null)
+        _LyricsQuery(
+          trackName: _cleanLyricsTerm(parsed.title),
+          artistName: _cleanLyricsTerm(parsed.artist),
+        ),
+      _LyricsQuery(query: "$queryArtist $cleanedTitle".trim()),
+      _LyricsQuery(query: cleanedTitle),
+    ];
+
+    final seen = <String>{};
+    return queries.where((query) => seen.add(query.key)).toList();
   }
 
   @override
@@ -132,6 +238,113 @@ class SyncedLyricsNotifier
 }
 
 final syncedLyricsDelayProvider = StateProvider<int>((ref) => 0);
+
+class _LyricsQuery {
+  final String? trackName;
+  final String? artistName;
+  final String? albumName;
+  final int? duration;
+  final String? query;
+
+  const _LyricsQuery({
+    this.trackName,
+    this.artistName,
+    this.albumName,
+    this.duration,
+    this.query,
+  });
+
+  String get key {
+    return [
+      trackName,
+      artistName,
+      albumName,
+      duration?.toString(),
+      query,
+    ].map((value) => value?.trim().toLowerCase() ?? "").join("|");
+  }
+
+  Map<String, String>? exactParameters() {
+    final cleanTrack = _string(trackName);
+    final cleanArtist = _string(artistName);
+    if (cleanTrack == null || cleanArtist == null) return null;
+
+    return {
+      "artist_name": cleanArtist,
+      "track_name": cleanTrack,
+      if (_string(albumName) != null) "album_name": _string(albumName)!,
+      if (duration != null && duration! > 0) "duration": duration.toString(),
+    };
+  }
+
+  Map<String, String>? searchParameters() {
+    final cleanQuery = _string(query);
+    if (cleanQuery != null) return {"q": cleanQuery};
+
+    final cleanTrack = _string(trackName);
+    if (cleanTrack == null) return null;
+
+    final cleanArtist = _string(artistName);
+    return {
+      "track_name": cleanTrack,
+      if (cleanArtist != null) "artist_name": cleanArtist,
+      if (_string(albumName) != null) "album_name": _string(albumName)!,
+    };
+  }
+}
+
+_ParsedTrackName? _splitArtistTitle(String? value) {
+  final text = value?.trim();
+  if (text == null || text.isEmpty) return null;
+
+  final match = RegExp(r"^(.+?)\s+(?:-|–|—|:)\s+(.+)$").firstMatch(text);
+  if (match == null) return null;
+
+  final artist = match.group(1)?.trim();
+  final title = match.group(2)?.trim();
+  if (artist == null || title == null || artist.isEmpty || title.isEmpty) {
+    return null;
+  }
+
+  return _ParsedTrackName(artist: artist, title: title);
+}
+
+String _cleanLyricsTerm(String value) {
+  return value
+      .replaceAll(
+        RegExp(r"\.(mp3|m4a|flac|ogg|opus|wav)$", caseSensitive: false),
+        "",
+      )
+      .replaceAll(
+        RegExp(
+          r"\s*[\[\(].*?(official|lyrics|audio|video|slowed|reverb).*?[\]\)]",
+          caseSensitive: false,
+        ),
+        "",
+      )
+      .replaceAll(RegExp(r"\s+"), " ")
+      .trim();
+}
+
+bool _isGenericTelegramName(String value) {
+  return value.trim().toLowerCase() == "telegram";
+}
+
+String? _string(Object? value) {
+  final string = value?.toString().trim();
+  if (string == null || string.isEmpty) return null;
+  return string;
+}
+
+class _ParsedTrackName {
+  final String artist;
+  final String title;
+
+  const _ParsedTrackName({
+    required this.artist,
+    required this.title,
+  });
+}
 
 final syncedLyricsProvider = AsyncNotifierProviderFamily<SyncedLyricsNotifier,
     SubtitleSimple, SpotubeTrackObject?>(

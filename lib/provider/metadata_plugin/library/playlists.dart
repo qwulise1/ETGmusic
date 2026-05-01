@@ -6,6 +6,7 @@ import 'package:etgmusic/provider/metadata_plugin/metadata_plugin_provider.dart'
 import 'package:etgmusic/provider/metadata_plugin/tracks/playlist.dart';
 import 'package:etgmusic/provider/metadata_plugin/utils/paginated.dart';
 import 'package:etgmusic/services/metadata/errors/exceptions.dart';
+import 'package:etgmusic/services/telegram/telegram_media.dart';
 
 class MetadataPluginSavedPlaylistsNotifier
     extends PaginatedAsyncNotifier<SpotubeSimplePlaylistObject> {
@@ -22,6 +23,7 @@ class MetadataPluginSavedPlaylistsNotifier
 
   @override
   build() async {
+    ref.watch(telegramMediaRevisionProvider);
     await ref.watch(metadataPluginAuthenticatedProvider.future);
 
     final playlists = await fetch(0, 20);
