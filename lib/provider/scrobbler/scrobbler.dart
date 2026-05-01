@@ -12,6 +12,33 @@ import 'package:etgmusic/services/logger/logger.dart';
 class ScrobblerNotifier extends AsyncNotifier<Scrobblenaut?> {
   final StreamController<SpotubeTrackObject> _scrobbleController =
       StreamController<SpotubeTrackObject>.broadcast();
+
+  Future<Scrobblenaut?> _restoreScrobbler(
+    ScrobblerTableData loginInfo,
+  ) async {
+    try {
+      final lastFm = await LastFM.authenticateWithPasswordHash(
+        apiKey: Env.lastFmApiKey,
+        apiSecret: Env.lastFmApiSecret,
+        username: loginInfo.username,
+        passwordHash: loginInfo.passwordHash.value,
+      );
+
+      if (!lastFm.isAuth) return null;
+
+      return Scrobblenaut(lastFM: lastFm);
+    } catch (e, stackTrace) {
+      await AppLogger.reportError(
+        e,
+        stackTrace,
+        "Failed to restore scrobbler auth",
+      );
+      final database = ref.read(databaseProvider);
+      await database.delete(database.scrobblerTable).go();
+      return null;
+    }
+  }
+
   @override
   build() async {
     final database = ref.watch(databaseProvider);
@@ -24,16 +51,7 @@ class ScrobblerNotifier extends AsyncNotifier<Scrobblenaut?> {
         database.select(database.scrobblerTable).watch().listen((event) async {
       try {
         if (event.isNotEmpty) {
-          state = await AsyncValue.guard(
-            () async => Scrobblenaut(
-              lastFM: await LastFM.authenticateWithPasswordHash(
-                apiKey: Env.lastFmApiKey,
-                apiSecret: Env.lastFmApiSecret,
-                username: event.first.username,
-                passwordHash: event.first.passwordHash.value,
-              ),
-            ),
-          );
+          state = AsyncValue.data(await _restoreScrobbler(event.first));
         } else {
           state = const AsyncValue.data(null);
         }
@@ -67,14 +85,7 @@ class ScrobblerNotifier extends AsyncNotifier<Scrobblenaut?> {
       return null;
     }
 
-    return Scrobblenaut(
-      lastFM: await LastFM.authenticateWithPasswordHash(
-        apiKey: Env.lastFmApiKey,
-        apiSecret: Env.lastFmApiSecret,
-        username: loginInfo.username,
-        passwordHash: loginInfo.passwordHash.value,
-      ),
-    );
+    return _restoreScrobbler(loginInfo);
   }
 
   Future<void> login(

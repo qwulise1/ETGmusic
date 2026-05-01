@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' hide join;
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:logger/logger.dart';
@@ -26,7 +27,7 @@ final _loggingToLoggerLevel = {
 
 class AppLogger {
   static late final Logger log;
-  static late final File logFile;
+  static File? logFile;
 
   static initialize(bool verbose) {
     log = Logger(
@@ -56,6 +57,27 @@ class AppLogger {
     return runZonedGuarded<R>(
       () {
         WidgetsFlutterBinding.ensureInitialized();
+
+        ErrorWidget.builder = (details) {
+          reportError(details.exception, details.stack);
+          return Directionality(
+            textDirection: TextDirection.ltr,
+            child: Container(
+              color: const Color(0xff111827),
+              padding: const EdgeInsets.all(16),
+              child: SingleChildScrollView(
+                child: Text(
+                  "ETGmusic UI error\n\n${details.exceptionAsString()}",
+                  style: const TextStyle(
+                    color: Color(0xffffffff),
+                    fontSize: 13,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+            ),
+          );
+        };
 
         FlutterError.onError = (details) {
           reportError(details.exception, details.stack ?? StackTrace.current);
@@ -119,7 +141,9 @@ class AppLogger {
     log.e(message, error: error, stackTrace: stackTrace);
 
     if (kReleaseMode) {
-      await logFile.writeAsString(
+      final file = logFile ?? await getLogsPath();
+      logFile = file;
+      await file.writeAsString(
         "[${DateTime.now()}]---------------------\n"
         "$error\n$stackTrace\n"
         "----------------------------------------\n",

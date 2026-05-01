@@ -23,7 +23,7 @@ class SearchPlaceholder extends HookConsumerWidget {
     final searchTerm = ref.watch(searchTermStateProvider);
 
     return switch ((searchTerm.isEmpty, snapshot.isLoading)) {
-      (true, false) => Column(
+      (true, _) => Column(
           children: [
             SizedBox(
               height: mediaQuery.height * 0.2,

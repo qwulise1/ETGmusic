@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:collection/collection.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -40,14 +41,13 @@ class SearchPage extends HookConsumerWidget {
 
     final searchTerm = ref.watch(searchTermStateProvider);
     final searchChipSnapshot = ref.watch(metadataPluginSearchChipsProvider);
-    final selectedChip = useState<String?>(
-      searchChipSnapshot.asData?.value.first ?? "all",
-    );
+    final chips = searchChipSnapshot.asData?.value ?? const <String>[];
+    final selectedChip = useState<String?>("all");
 
     ref.listen(
       metadataPluginSearchChipsProvider,
       (previous, next) {
-        selectedChip.value = next.asData?.value.first ?? "all";
+        selectedChip.value = next.asData?.value.firstOrNull ?? "all";
       },
     );
 
@@ -193,8 +193,7 @@ class SearchPage extends HookConsumerWidget {
                   spacing: 8,
                   children: [
                     const Gap(12),
-                    if (searchChipSnapshot.asData?.value != null)
-                      for (final chip in searchChipSnapshot.asData!.value)
+                    for (final chip in chips)
                         Chip(
                           style: selectedChip.value == chip
                               ? ButtonVariance.primary.copyWith(
