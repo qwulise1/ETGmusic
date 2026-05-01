@@ -1,5 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart' show ListTile, TextInputType, Wrap;
+import 'package:flutter/widgets.dart'
+    show FocusManager, ValueKey, WidgetsBinding;
 
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -355,6 +357,8 @@ class _TelegramSessionDialog extends HookConsumerWidget {
     );
     final codeController = useTextEditingController();
     final passwordController = useTextEditingController();
+    final codeFocusNode = useFocusNode();
+    final passwordFocusNode = useFocusNode();
     final showApiHash = useState(false);
     final showPassword = useState(false);
     final submitting = useState(false);
@@ -365,6 +369,15 @@ class _TelegramSessionDialog extends HookConsumerWidget {
       TelegramSessionStatus.passwordRequired => _TelegramSessionStep.password,
       _ => _TelegramSessionStep.credentials,
     });
+
+    useEffect(() {
+      if (step.value != _TelegramSessionStep.password) return null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        passwordFocusNode.requestFocus();
+      });
+      return null;
+    }, [step.value]);
 
     Future<void> requestCode() async {
       final apiId = int.tryParse(apiIdController.text.trim());
@@ -406,6 +419,7 @@ class _TelegramSessionDialog extends HookConsumerWidget {
         if (next?.sessionStatus == TelegramSessionStatus.passwordRequired) {
           passwordHint.value = next?.passwordHint;
           passwordController.clear();
+          FocusManager.instance.primaryFocus?.unfocus();
           step.value = _TelegramSessionStep.password;
           return;
         }
@@ -508,13 +522,17 @@ class _TelegramSessionDialog extends HookConsumerWidget {
           ],
           if (step.value == _TelegramSessionStep.code)
             TextField(
+              key: const ValueKey("telegram-session-code"),
               controller: codeController,
+              focusNode: codeFocusNode,
               keyboardType: TextInputType.number,
               placeholder: const Text("Код из Telegram"),
             ),
           if (step.value == _TelegramSessionStep.password)
             TextField(
+              key: const ValueKey("telegram-session-password"),
               controller: passwordController,
+              focusNode: passwordFocusNode,
               keyboardType: TextInputType.visiblePassword,
               obscureText: !showPassword.value,
               placeholder: const Text("Пароль 2FA"),
