@@ -97,13 +97,14 @@ class TelegramMediaService {
       coverUrl: coverUrl?.trim().isEmpty == true ? null : coverUrl?.trim(),
     );
 
-    await _writeStoredTracks(records);
-    final database = ref.read(databaseProvider);
-    await (database.delete(database.lyricsTable)
-          ..where((table) => table.trackId.equals(id)))
-        .go();
-    ref.read(telegramMediaRevisionProvider.notifier).state++;
-  }
+	    await _writeStoredTracks(records);
+	    final database = ref.read(databaseProvider);
+	    await (database.delete(database.lyricsTable)
+	          ..where((table) => table.trackId.equals(id)))
+	        .go();
+	    ref.invalidate(telegramMediaTracksProvider);
+	    ref.read(telegramMediaRevisionProvider.notifier).state++;
+	  }
 
   Future<TelegramSyncResult> syncBotUpdates() async {
     final token = await ref.read(telegramAuthProvider.notifier).readBotToken();
@@ -165,36 +166,30 @@ class TelegramMediaService {
           ? null
           : await _getFilePath(token, thumbnailFileId);
 
-      final record = TelegramTrackRecord(
-        id: "telegram:${media.fileUniqueId ?? fileId}",
-        name: media.title,
-        artist: media.artist,
-        album: _string(chat["title"]) ?? "Telegram",
-        chatId: _string(chat["id"]) ?? "telegram",
-        chatTitle: _string(chat["title"]) ?? _string(chat["username"]) ?? "Telegram",
-        messageId: _asInt(message["message_id"]) ?? 0,
-        durationMs: media.durationMs,
-        fileUrl: "https://api.telegram.org/file/bot$token/$filePath",
-        coverUrl: coverPath == null
-            ? null
-            : "https://api.telegram.org/file/bot$token/$coverPath",
-        coverWidth: media.thumbnailWidth,
-        coverHeight: media.thumbnailHeight,
-        mimeType: media.mimeType,
-        fileName: media.fileName,
-        addedAt: DateTime.now(),
-      );
+	      final record = TelegramTrackRecord(
+	        id: "telegram:${media.fileUniqueId ?? fileId}",
+	        name: media.title,
+	        artist: media.artist,
+	        album: _string(chat["title"]) ?? "Telegram",
+	        chatId: _string(chat["id"]) ?? "telegram",
+	        chatTitle: _string(chat["title"]) ?? _string(chat["username"]) ?? "Telegram",
+	        messageId: _asInt(message["message_id"]) ?? 0,
+	        durationMs: media.durationMs,
+	        fileUrl: "https://api.telegram.org/file/bot$token/$filePath",
+	        coverUrl: coverPath == null
+	            ? null
+	            : "https://api.telegram.org/file/bot$token/$coverPath",
+	        coverWidth: media.thumbnailWidth,
+	        coverHeight: media.thumbnailHeight,
+	        mimeType: media.mimeType,
+	        fileName: media.fileName,
+	        addedAt: DateTime.now(),
+	      );
 
-      final previous = recordsById[record.id];
-      if (previous == null) added++;
-      recordsById[record.id] = previous == null
-          ? record
-          : record.copyWith(
-              manualName: previous.manualName,
-              manualArtist: previous.manualArtist,
-              manualAlbum: previous.manualAlbum,
-              coverUrl: previous.coverUrl ?? record.coverUrl,
-            );
+	      final previous = recordsById[record.id];
+	      if (previous == null) added++;
+	      recordsById[record.id] =
+	          previous == null ? record : previous.mergeFresh(record);
     }
 
     if (maxUpdateId != null) {
@@ -238,37 +233,15 @@ class TelegramMediaService {
         (_) => previous?.coverUrl,
       );
 
-      final record = TelegramTrackRecord(
-        id: id,
-        name: track.title,
-        artist: track.artist,
-        album: track.album,
-        chatId: track.chatId,
-        chatTitle: track.chatTitle,
-        messageId: track.messageId,
-        durationMs: track.durationMs,
-        fileUrl: "telegram-mtproto://document/${track.documentId}",
-        coverUrl: coverUrl ?? previous?.coverUrl,
-        mimeType: track.mimeType,
-        fileName: track.fileName,
-        mtprotoDocumentId: track.documentId,
-        mtprotoAccessHash: track.accessHash,
-        mtprotoFileReference: track.fileReferenceBase64,
-        mtprotoDcId: track.dcId,
-        mtprotoSize: track.size,
-        mtprotoThumbSize: track.thumbSize,
-        addedAt: track.addedAt,
-      );
+	      final record = _recordFromMtprotoTrack(
+	        track,
+	        id: id,
+	        coverUrl: coverUrl ?? previous?.coverUrl,
+	      );
 
-      recordsById[id] = previous == null
-          ? record
-          : record.copyWith(
-              manualName: previous.manualName,
-              manualArtist: previous.manualArtist,
-              manualAlbum: previous.manualAlbum,
-              coverUrl: previous.coverUrl ?? record.coverUrl,
-            );
-    }
+	      recordsById[id] =
+	          previous == null ? record : previous.mergeFresh(record);
+	    }
 
     final records = recordsById.values.toList()
       ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
@@ -294,34 +267,138 @@ class TelegramMediaService {
       return record.fileUrl;
     }
 
-    final documentId = record.mtprotoDocumentId;
-    final accessHash = record.mtprotoAccessHash;
-    final fileReference = record.mtprotoFileReference;
-    final size = record.mtprotoSize;
-    if (documentId == null ||
-        accessHash == null ||
-        fileReference == null ||
+	    return _resolveMtprotoPlayableUrl(record);
+	  }
+
+	  Future<String> _resolveMtprotoPlayableUrl(TelegramTrackRecord record) async {
+	    var current = record;
+	    var refreshed = false;
+
+	    while (true) {
+	      final cacheFile = await _mtprotoAudioCacheFile(current);
+	      if (await cacheFile.exists()) {
+	        if (await cacheFile.length() > 0) {
+	          return cacheFile.uri.toString();
+	        }
+	        await cacheFile.delete().catchError((_) => cacheFile);
+	      }
+
+	      try {
+	        final bytes = await _downloadMtprotoBytes(current);
+	        if (bytes.isEmpty) {
+	          throw const TelegramMediaException(
+	            "Telegram вернул пустой файл для этого трека",
+	          );
+	        }
+	        await cacheFile.create(recursive: true);
+	        await cacheFile.writeAsBytes(bytes, flush: true);
+	        return cacheFile.uri.toString();
+	      } catch (error, stackTrace) {
+	        if (refreshed) {
+	          Error.throwWithStackTrace(error, stackTrace);
+	        }
+
+	        final updated = await _refreshMtprotoRecord(current);
+	        if (updated == null) {
+	          Error.throwWithStackTrace(error, stackTrace);
+	        }
+	        current = updated;
+	        refreshed = true;
+	      }
+	    }
+	  }
+
+	  Future<List<int>> _downloadMtprotoBytes(TelegramTrackRecord record) async {
+	    final documentId = record.mtprotoDocumentId;
+	    final accessHash = record.mtprotoAccessHash;
+	    final fileReference = record.mtprotoFileReference;
+	    final size = record.mtprotoSize;
+	    if (documentId == null ||
+	        accessHash == null ||
+	        fileReference == null ||
         size == null) {
       throw const TelegramMediaException(
-        "У MTProto-трека нет данных документа",
-      );
-    }
+	        "У MTProto-трека нет данных документа",
+	      );
+	    }
 
-    final cacheFile = await _mtprotoAudioCacheFile(record);
-    if (await cacheFile.exists() && await cacheFile.length() > 0) {
-      return cacheFile.uri.toString();
-    }
+	    return _mtproto.downloadDocument(
+	      documentId: documentId,
+	      accessHash: accessHash,
+	      fileReferenceBase64: fileReference,
+	      dcId: record.mtprotoDcId,
+	      size: size,
+	    );
+	  }
 
-    final bytes = await _mtproto.downloadDocument(
-      documentId: documentId,
-      accessHash: accessHash,
-      fileReferenceBase64: fileReference,
-      size: size,
-    );
-    await cacheFile.create(recursive: true);
-    await cacheFile.writeAsBytes(bytes, flush: true);
-    return cacheFile.uri.toString();
-  }
+	  Future<TelegramTrackRecord?> _refreshMtprotoRecord(
+	    TelegramTrackRecord record,
+	  ) async {
+	    if (record.chatId.trim().isEmpty || record.messageId <= 0) return null;
+
+	    final freshTrack = await _mtproto.refreshTrackByMessage(
+	      chatId: record.chatId,
+	      messageId: record.messageId,
+	    );
+	    if (freshTrack == null) return null;
+
+	    final coverUrl = await _cacheMtprotoCover(freshTrack).catchError(
+	      (_) => record.coverUrl,
+	    );
+	    final freshRecord = _recordFromMtprotoTrack(
+	      freshTrack,
+	      id: record.id,
+	      coverUrl: coverUrl ?? record.coverUrl,
+	    );
+	    final merged = record.mergeFresh(freshRecord);
+	    await _replaceStoredTrack(merged);
+	    return merged;
+	  }
+
+	  Future<void> _replaceStoredTrack(TelegramTrackRecord record) async {
+	    final records = await _readStoredTracks();
+	    final key = _dedupeKey(record);
+	    final index = records.indexWhere(
+	      (track) => track.id == record.id || _dedupeKey(track) == key,
+	    );
+	    if (index < 0) {
+	      records.add(record);
+	    } else {
+	      records[index] = records[index].mergeFresh(record);
+	    }
+
+	    await _writeStoredTracks(records);
+	    ref.invalidate(telegramMediaTracksProvider);
+	    ref.read(telegramMediaRevisionProvider.notifier).state++;
+	  }
+
+	  TelegramTrackRecord _recordFromMtprotoTrack(
+	    TelegramMtprotoTrack track, {
+	    String? id,
+	    String? coverUrl,
+	  }) {
+	    return TelegramTrackRecord(
+	      id: id ?? "telegram:mtproto:${track.documentId}",
+	      name: track.title,
+	      artist: track.artist,
+	      album: track.album,
+	      chatId: track.chatId,
+	      chatTitle: track.chatTitle,
+	      messageId: track.messageId,
+	      durationMs: track.durationMs,
+	      fileUrl: "telegram-mtproto://document/${track.documentId}",
+	      coverUrl: coverUrl,
+	      mimeType: track.mimeType,
+	      fileName: track.fileName,
+	      mtprotoDocumentId: track.documentId,
+	      mtprotoAccessHash: track.accessHash,
+	      mtprotoFileReference: track.fileReferenceBase64,
+	      mtprotoDcId: track.dcId,
+	      mtprotoSize: track.size,
+	      mtprotoThumbSize: track.thumbSize,
+	      addedAt: track.addedAt,
+	    );
+	  }
 
   Future<String?> _cacheMtprotoCover(TelegramMtprotoTrack track) async {
     final thumbSize = track.thumbSize;
@@ -331,13 +408,14 @@ class TelegramMediaService {
     final file = File(p.join(dir.path, "${track.documentId}-$thumbSize.jpg"));
     if (await file.exists() && await file.length() > 0) return file.path;
 
-    final bytes = await _mtproto.downloadDocument(
-      documentId: track.documentId,
-      accessHash: track.accessHash,
-      fileReferenceBase64: track.fileReferenceBase64,
-      size: 0,
-      thumbSize: thumbSize,
-    );
+	    final bytes = await _mtproto.downloadDocument(
+	      documentId: track.documentId,
+	      accessHash: track.accessHash,
+	      fileReferenceBase64: track.fileReferenceBase64,
+	      dcId: track.dcId,
+	      size: 0,
+	      thumbSize: thumbSize,
+	    );
     if (bytes.isEmpty) return null;
     await file.create(recursive: true);
     await file.writeAsBytes(bytes, flush: true);
@@ -346,12 +424,12 @@ class TelegramMediaService {
 
   Future<File> _mtprotoAudioCacheFile(TelegramTrackRecord record) async {
     final dir = await _telegramCacheDir("audio");
-    final extension = _extensionFromRecord(record);
-    final basename = _sanitizeFilePart(
-      "${record.mtprotoDocumentId ?? record.id}-${record.name}.$extension",
-    );
-    return File(p.join(dir.path, basename));
-  }
+	    final extension = _extensionFromRecord(record);
+	    final basename = _sanitizeFilePart(
+	      "${record.mtprotoDocumentId ?? record.id}.$extension",
+	    );
+	    return File(p.join(dir.path, basename));
+	  }
 
   Future<Directory> _telegramCacheDir(String child) async {
     final base = await getApplicationCacheDirectory();
@@ -367,18 +445,43 @@ class TelegramMediaService {
     final parsed = jsonDecode(raw);
     if (parsed is! List) return [];
 
-    return parsed
-        .whereType<Map>()
-        .map((item) => TelegramTrackRecord.fromJson(item.cast<String, dynamic>()))
-        .toList();
-  }
+	    return _dedupeStoredTracks(parsed
+	        .whereType<Map>()
+	        .map((item) => TelegramTrackRecord.fromJson(item.cast<String, dynamic>()))
+	        .toList());
+	  }
 
-  Future<void> _writeStoredTracks(List<TelegramTrackRecord> tracks) async {
-    await KVStoreService.sharedPreferences.setString(
-      _tracksKey,
-      jsonEncode(tracks.map((track) => track.toJson()).toList()),
-    );
-  }
+	  Future<void> _writeStoredTracks(List<TelegramTrackRecord> tracks) async {
+	    final deduped = _dedupeStoredTracks(tracks)
+	      ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
+	    await KVStoreService.sharedPreferences.setString(
+	      _tracksKey,
+	      jsonEncode(deduped.map((track) => track.toJson()).toList()),
+	    );
+	  }
+
+	  List<TelegramTrackRecord> _dedupeStoredTracks(
+	    List<TelegramTrackRecord> tracks,
+	  ) {
+	    final byKey = <String, TelegramTrackRecord>{};
+	    for (final track in tracks) {
+	      final key = _dedupeKey(track);
+	      final previous = byKey[key];
+	      byKey[key] = previous == null ? track : previous.mergeFresh(track);
+	    }
+	    return byKey.values.toList();
+	  }
+
+	  String _dedupeKey(TelegramTrackRecord track) {
+	    final documentId = track.mtprotoDocumentId;
+	    if (documentId != null) return "mtproto:$documentId";
+
+	    if (track.chatId.trim().isNotEmpty && track.messageId > 0) {
+	      return "message:${track.chatId}:${track.messageId}";
+	    }
+
+	    return track.id;
+	  }
 
   Future<String?> _getFilePath(String token, String fileId) async {
     final response = await globalDio.get(
@@ -555,11 +658,11 @@ class TelegramTrackRecord {
     };
   }
 
-  TelegramTrackRecord copyWith({
-    String? manualName,
-    String? manualArtist,
-    String? manualAlbum,
-    String? coverUrl,
+	  TelegramTrackRecord copyWith({
+	    String? manualName,
+	    String? manualArtist,
+	    String? manualAlbum,
+	    String? coverUrl,
   }) {
     return TelegramTrackRecord(
       id: id,
@@ -585,11 +688,41 @@ class TelegramTrackRecord {
       mtprotoDcId: mtprotoDcId,
       mtprotoSize: mtprotoSize,
       mtprotoThumbSize: mtprotoThumbSize,
-      addedAt: addedAt,
-    );
-  }
+	      addedAt: addedAt,
+	    );
+	  }
 
-  SpotubeFullTrackObject toMetadata() {
+	  TelegramTrackRecord mergeFresh(TelegramTrackRecord fresh) {
+	    return TelegramTrackRecord(
+	      id: id,
+	      name: fresh.name,
+	      artist: fresh.artist,
+	      album: fresh.album,
+	      chatId: fresh.chatId,
+	      chatTitle: fresh.chatTitle,
+	      messageId: fresh.messageId,
+	      durationMs: fresh.durationMs,
+	      fileUrl: fresh.fileUrl,
+	      coverUrl: coverUrl ?? fresh.coverUrl,
+	      coverWidth: fresh.coverWidth ?? coverWidth,
+	      coverHeight: fresh.coverHeight ?? coverHeight,
+	      mimeType: fresh.mimeType ?? mimeType,
+	      fileName: fresh.fileName ?? fileName,
+	      manualName: manualName ?? fresh.manualName,
+	      manualArtist: manualArtist ?? fresh.manualArtist,
+	      manualAlbum: manualAlbum ?? fresh.manualAlbum,
+	      mtprotoDocumentId: fresh.mtprotoDocumentId ?? mtprotoDocumentId,
+	      mtprotoAccessHash: fresh.mtprotoAccessHash ?? mtprotoAccessHash,
+	      mtprotoFileReference:
+	          fresh.mtprotoFileReference ?? mtprotoFileReference,
+	      mtprotoDcId: fresh.mtprotoDcId ?? mtprotoDcId,
+	      mtprotoSize: fresh.mtprotoSize ?? mtprotoSize,
+	      mtprotoThumbSize: fresh.mtprotoThumbSize ?? mtprotoThumbSize,
+	      addedAt: fresh.addedAt,
+	    );
+	  }
+
+	  SpotubeFullTrackObject toMetadata() {
     final parsed = _isGenericArtist(artist) ? _splitArtistTitle(name) : null;
     final effectiveName = manualName ?? parsed?.title ?? name;
     final effectiveArtist = manualArtist ?? parsed?.artist ?? artist;

@@ -3,6 +3,7 @@ import 'package:etgmusic/models/metadata/metadata.dart';
 import 'package:etgmusic/provider/metadata_plugin/metadata_plugin_provider.dart';
 import 'package:etgmusic/provider/metadata_plugin/utils/common.dart';
 import 'package:etgmusic/provider/metadata_plugin/utils/family_paginated.dart';
+import 'package:etgmusic/services/telegram/telegram_media.dart';
 
 class MetadataPluginSearchPlaylistsNotifier
     extends AutoDisposeFamilyPaginatedAsyncNotifier<SpotubeSimplePlaylistObject,
@@ -35,6 +36,7 @@ class MetadataPluginSearchPlaylistsNotifier
     ref.cacheFor();
 
     ref.watch(metadataPluginProvider);
+    ref.watch(telegramMediaRevisionProvider);
     return await fetch(0, 20);
   }
 }

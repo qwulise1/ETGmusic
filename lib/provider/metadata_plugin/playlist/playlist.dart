@@ -6,6 +6,7 @@ import 'package:etgmusic/provider/metadata_plugin/core/user.dart';
 import 'package:etgmusic/provider/metadata_plugin/utils/common.dart';
 import 'package:etgmusic/services/metadata/errors/exceptions.dart';
 import 'package:etgmusic/services/metadata/metadata.dart';
+import 'package:etgmusic/services/telegram/telegram_media.dart';
 
 class MetadataPluginPlaylistNotifier
     extends AutoDisposeFamilyAsyncNotifier<SpotubeFullPlaylistObject, String> {
@@ -22,6 +23,7 @@ class MetadataPluginPlaylistNotifier
   @override
   build(playlistId) async {
     ref.cacheFor();
+    ref.watch(telegramMediaRevisionProvider);
 
     return (await metadataPlugin).playlist.getPlaylist(playlistId);
   }

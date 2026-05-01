@@ -23,6 +23,7 @@ import 'package:etgmusic/provider/metadata_plugin/core/auth.dart';
 import 'package:etgmusic/provider/metadata_plugin/library/playlists.dart';
 import 'package:etgmusic/provider/metadata_plugin/library/tracks.dart';
 import 'package:etgmusic/provider/metadata_plugin/metadata_plugin_provider.dart';
+import 'package:etgmusic/provider/metadata_plugin/tracks/playlist.dart';
 import 'package:etgmusic/services/metadata/errors/exceptions.dart';
 import 'package:etgmusic/services/telegram/telegram_media.dart';
 
@@ -203,15 +204,17 @@ class TrackOptionsActions {
 
       if (saved != true) return;
 
-      await ref.read(telegramMediaServiceProvider).updateTrackMetadata(
-            track.id,
-            name: nameController.text,
-            artist: artistController.text,
-            album: albumController.text,
-            coverUrl: coverController.text,
-          );
+	      await ref.read(telegramMediaServiceProvider).updateTrackMetadata(
+	            track.id,
+	            name: nameController.text,
+	            artist: artistController.text,
+	            album: albumController.text,
+	            coverUrl: coverController.text,
+	          );
+	      ref.invalidate(metadataPluginSavedTracksProvider);
+	      ref.invalidate(metadataPluginPlaylistTracksProvider("telegram-library"));
 
-      if (!context.mounted) return;
+	      if (!context.mounted) return;
       showToast(
         context: context,
         location: ToastLocation.topRight,

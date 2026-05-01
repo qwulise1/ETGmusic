@@ -186,10 +186,10 @@ class TelegramMtprotoService {
     await _persistAuthKey(client.authorizationKey);
   }
 
-  Future<List<TelegramMtprotoTrack>> fetchAudioFromSources(
-    List<String> sourceFilters, {
-    int pageSize = 100,
-    int maxMessagesPerSource = 10000,
+	  Future<List<TelegramMtprotoTrack>> fetchAudioFromSources(
+	    List<String> sourceFilters, {
+	    int pageSize = 100,
+	    int maxMessagesPerSource = 10000,
   }) async {
     final apiId = _readApiId();
     final client = await _connect(apiId: apiId);
@@ -254,30 +254,124 @@ class TelegramMtprotoService {
       }
     }
 
-    return tracks;
-  }
+	    return tracks;
+	  }
 
-  Future<Uint8List> downloadDocument({
-    required int documentId,
-    required int accessHash,
-    required String fileReferenceBase64,
-    required int size,
-    String thumbSize = "",
-  }) async {
-    final apiId = _readApiId();
-    final client = await _connect(apiId: apiId);
-    final location = t.InputDocumentFileLocation(
-      id: documentId,
-      accessHash: accessHash,
+	  Future<TelegramMtprotoTrack?> refreshTrackByMessage({
+	    required String chatId,
+	    required int messageId,
+	  }) async {
+	    if (chatId.trim().isEmpty || messageId <= 0) return null;
+
+	    final apiId = _readApiId();
+	    final client = await _connect(apiId: apiId);
+	    final peers = await _resolvePeers(client, [chatId]);
+
+	    for (final peer in peers) {
+	      final track = await _trackAroundMessage(
+	        client,
+	        peer,
+	        messageId,
+	      );
+	      if (track != null) return track;
+	    }
+
+	    return null;
+	  }
+
+	  Future<TelegramMtprotoTrack?> _trackAroundMessage(
+	    tg.Client client,
+	    _ResolvedTelegramPeer peer,
+	    int messageId,
+	  ) async {
+	    for (final window in const [1, 20, 100]) {
+	      final response = await _telegramCall(
+	        client.messages.getHistory(
+	          peer: peer.peer,
+	          offsetId: messageId + window,
+	          offsetDate: DateTime.fromMillisecondsSinceEpoch(0),
+	          addOffset: 0,
+	          limit: window == 1 ? 1 : window,
+	          maxId: 0,
+	          minId: 0,
+	          hash: 0,
+	        ),
+	        "Telegram не ответил на обновление ссылки файла ${peer.title}",
+	      );
+
+	      final error = response.error;
+	      if (error != null) {
+	        AppLogger.log.w(
+	          "Telegram MTProto refresh failed for ${peer.title}: "
+	          "${error.errorMessage}",
+	        );
+	        continue;
+	      }
+
+	      final message = _messagesFrom(response.result).firstWhereOrNull(
+	        (message) => message.id == messageId,
+	      );
+	      if (message == null) continue;
+
+	      return _trackFromMessage(message, peer);
+	    }
+
+	    return null;
+	  }
+
+	  Future<Uint8List> downloadDocument({
+	    required int documentId,
+	    required int accessHash,
+	    required String fileReferenceBase64,
+	    int? dcId,
+	    required int size,
+	    String thumbSize = "",
+	  }) async {
+	    final apiId = _readApiId();
+	    final client = await _connect(apiId: apiId);
+	    final targetDcId = dcId;
+	    if (targetDcId != null && targetDcId > 0 && targetDcId != _dc.id) {
+	      return _downloadDocumentFromDc(
+	        targetDcId: targetDcId,
+	        documentId: documentId,
+	        accessHash: accessHash,
+	        fileReferenceBase64: fileReferenceBase64,
+	        size: size,
+	        thumbSize: thumbSize,
+	        sourceClient: client,
+	      );
+	    }
+
+	    return _downloadDocumentOnCurrentDc(
+	      documentId: documentId,
+	      accessHash: accessHash,
+	      fileReferenceBase64: fileReferenceBase64,
+	      size: size,
+	      thumbSize: thumbSize,
+	    );
+	  }
+
+	  Future<Uint8List> _downloadDocumentOnCurrentDc({
+	    required int documentId,
+	    required int accessHash,
+	    required String fileReferenceBase64,
+	    required int size,
+	    String thumbSize = "",
+	  }) async {
+	    final apiId = _readApiId();
+	    final client = await _connect(apiId: apiId);
+	    final location = t.InputDocumentFileLocation(
+	      id: documentId,
+	      accessHash: accessHash,
       fileReference: base64Decode(fileReferenceBase64),
       thumbSize: thumbSize,
     );
     final builder = BytesBuilder(copy: false);
-    var offset = 0;
-    const chunkSize = 512 * 1024;
-    final targetSize = size <= 0 || thumbSize.isNotEmpty ? chunkSize : size;
+	    var offset = 0;
+	    const chunkSize = 512 * 1024;
+	    final targetSize = size <= 0 || thumbSize.isNotEmpty ? chunkSize : size;
 
-    while (offset < targetSize) {
+	    while (offset < targetSize) {
       final response = await _telegramCall(
         client.upload.getFile(
           precise: false,
@@ -289,10 +383,22 @@ class TelegramMtprotoService {
         "Telegram не ответил на загрузку файла",
       );
 
-      final error = response.error;
-      if (error != null) {
-        throw TelegramMtprotoException(_humanError(error.errorMessage));
-      }
+	      final error = response.error;
+	      if (error != null) {
+	        final migrateDcId = _migrateDcId(error.errorMessage, "FILE_MIGRATE_");
+	        if (migrateDcId != null && migrateDcId != _dc.id) {
+	          return _downloadDocumentFromDc(
+	            targetDcId: migrateDcId,
+	            documentId: documentId,
+	            accessHash: accessHash,
+	            fileReferenceBase64: fileReferenceBase64,
+	            size: size,
+	            thumbSize: thumbSize,
+	            sourceClient: client,
+	          );
+	        }
+	        throw TelegramMtprotoException(_humanError(error.errorMessage));
+	      }
 
       final result = response.result;
       if (result is! t.UploadFile) {
@@ -309,12 +415,101 @@ class TelegramMtprotoService {
       if (bytes.length < chunkSize || thumbSize.isNotEmpty) break;
     }
 
-    return builder.takeBytes();
-  }
+	    return builder.takeBytes();
+	  }
 
-  Future<String?> readPhoneNumber() async {
-    return KVStoreService.sharedPreferences.getString(_phoneKey);
-  }
+	  Future<Uint8List> _downloadDocumentFromDc({
+	    required int targetDcId,
+	    required int documentId,
+	    required int accessHash,
+	    required String fileReferenceBase64,
+	    required int size,
+	    required String thumbSize,
+	    required tg.Client sourceClient,
+	  }) async {
+	    final originalDc = _dc;
+	    final targetDc = await _resolveDcOption(sourceClient, targetDcId);
+	    final hasTargetAuth = await _readAuthKey(
+	      dcId: targetDcId,
+	      allowLegacyFallback: false,
+	    ) != null;
+	    final exportedAuth =
+	        hasTargetAuth ? null : await _exportAuthorization(sourceClient, targetDcId);
+
+	    await _closeConnection();
+	    _dc = targetDc;
+
+	    try {
+	      final targetClient = await _connect(
+	        apiId: _readApiId(),
+	        loadPersistedDc: false,
+	        allowLegacyAuthFallback: false,
+	      );
+
+	      if (exportedAuth != null) {
+	        await _importAuthorization(targetClient, exportedAuth);
+	        await _persistAuthKey(
+	          targetClient.authorizationKey,
+	          dcId: targetDcId,
+	          updateLegacy: false,
+	        );
+	      }
+
+	      return await _downloadDocumentOnCurrentDc(
+	        documentId: documentId,
+	        accessHash: accessHash,
+	        fileReferenceBase64: fileReferenceBase64,
+	        size: size,
+	        thumbSize: thumbSize,
+	      );
+	    } finally {
+	      await _closeConnection();
+	      _dc = originalDc;
+	    }
+	  }
+
+	  Future<t.AuthExportedAuthorization> _exportAuthorization(
+	    tg.Client client,
+	    int dcId,
+	  ) async {
+	    final response = await _telegramCall(
+	      client.auth.exportAuthorization(dcId: dcId),
+	      "Telegram не экспортировал авторизацию для DC $dcId",
+	    );
+	    final error = response.error;
+	    if (error != null) {
+	      throw TelegramMtprotoException(_humanError(error.errorMessage));
+	    }
+
+	    final result = response.result;
+	    if (result is! t.AuthExportedAuthorization) {
+	      throw TelegramMtprotoException(
+	        "Telegram вернул неверную авторизацию для DC $dcId",
+	      );
+	    }
+	    return result;
+	  }
+
+	  Future<void> _importAuthorization(
+	    tg.Client client,
+	    t.AuthExportedAuthorization authorization,
+	  ) async {
+	    final response = await _telegramCall(
+	      client.auth.importAuthorization(
+	        id: authorization.id,
+	        bytes: authorization.bytes,
+	      ),
+	      "Telegram не импортировал авторизацию для файлового DC",
+	    );
+	    final error = response.error;
+	    if (error != null) {
+	      throw TelegramMtprotoException(_humanError(error.errorMessage));
+	    }
+	  }
+
+	  Future<String?> readPhoneNumber() async {
+	    return KVStoreService.sharedPreferences.getString(_phoneKey);
+	  }
 
   Future<void> disconnect() async {
     await _closeConnection();
@@ -325,27 +520,37 @@ class TelegramMtprotoService {
     await prefs.remove(_dcIdKey);
     await prefs.remove(_dcIpKey);
     await prefs.remove(_dcPortKey);
-    await _deleteSecure(_apiHashKey);
-    await _deleteSecure(_authKeyKey);
-  }
+	    await _deleteSecure(_apiHashKey);
+	    await _deleteSecure(_authKeyKey);
+	    for (final dcId in const [1, 2, 3, 4, 5]) {
+	      await _deleteSecure(_authKeyStorageKey(dcId));
+	    }
+	  }
 
-  Future<tg.Client> _connect({required int apiId}) async {
-    final existing = _client;
-    if (existing != null) return existing;
+	  Future<tg.Client> _connect({
+	    required int apiId,
+	    bool loadPersistedDc = true,
+	    bool allowLegacyAuthFallback = true,
+	  }) async {
+	    final existing = _client;
+	    if (existing != null) return existing;
 
-    Socket? socket;
-    try {
-      _loadDc();
-      socket = await Socket.connect(_dc.ipAddress, _dc.port)
-          .timeout(_socketTimeout);
-      _socket = socket;
+	    Socket? socket;
+	    try {
+	      if (loadPersistedDc) _loadDc();
+	      socket = await Socket.connect(_dc.ipAddress, _dc.port)
+	          .timeout(_socketTimeout);
+	      _socket = socket;
 
       final transport = _TelegramTcpSocket(socket);
       final obfuscation = tg.Obfuscation.random(false, _dc.id);
       final messageIdGenerator = tg.MessageIdGenerator();
       await transport.send(obfuscation.preamble).timeout(_socketTimeout);
 
-      final loadedKey = await _readAuthKey();
+	      final loadedKey = await _readAuthKey(
+	        dcId: _dc.id,
+	        allowLegacyFallback: allowLegacyAuthFallback,
+	      );
       final authKey = loadedKey ??
           await tg.Client
               .authorize(
@@ -395,8 +600,12 @@ class TelegramMtprotoService {
                   .whereType<t.DcOption>()
                   .firstWhere((dc) => !dc.ipv6 && dc.port == 443),
             );
-        await _saveDc(nearestDc);
-      }
+	        if (loadPersistedDc) {
+	          await _saveDc(nearestDc);
+	        } else {
+	          _dc = nearestDc;
+	        }
+	      }
 
       _client = client;
       return client;
@@ -724,41 +933,47 @@ class TelegramMtprotoService {
     );
   }
 
-  Future<bool> _handleMigration(
-    t.RpcError error, {
-    required int apiId,
-  }) async {
-    final message = error.errorMessage;
-    if (!message.startsWith("PHONE_MIGRATE_") &&
-        !message.startsWith("NETWORK_MIGRATE_") &&
-        !message.startsWith("USER_MIGRATE_")) {
-      return false;
-    }
+	  Future<bool> _handleMigration(
+	    t.RpcError error, {
+	    required int apiId,
+	  }) async {
+	    final message = error.errorMessage;
+	    final dcId = _migrateDcId(message, "PHONE_MIGRATE_") ??
+	        _migrateDcId(message, "NETWORK_MIGRATE_") ??
+	        _migrateDcId(message, "USER_MIGRATE_");
+	    if (dcId == null) return false;
 
-    final dcId = int.tryParse(message.split("_").last);
-    if (dcId == null) return false;
+	    final client = await _connect(apiId: apiId);
+	    final targetDc = await _resolveDcOption(client, dcId);
 
-    final client = await _connect(apiId: apiId);
-    final config = await _telegramCall(
-      client.help.getConfig(),
-      "Telegram не ответил на смену дата-центра",
-    );
-    final configResult = config.result;
-    t.DcOption? targetDc;
-    if (configResult is t.Config) {
-      for (final dc in configResult.dcOptions.whereType<t.DcOption>()) {
-        if (!dc.ipv6 && dc.port == 443 && dc.id == dcId) {
-          targetDc = dc;
-          break;
-        }
-      }
-    }
-    if (targetDc == null) return false;
+	    await _saveDc(targetDc);
+	    await _closeConnection();
+	    return true;
+	  }
 
-    await _saveDc(targetDc);
-    await _closeConnection();
-    return true;
-  }
+	  int? _migrateDcId(String message, String prefix) {
+	    if (!message.startsWith(prefix)) return null;
+	    return int.tryParse(message.split("_").last);
+	  }
+
+	  Future<t.DcOption> _resolveDcOption(tg.Client client, int dcId) async {
+	    final config = await _telegramCall(
+	      client.help.getConfig(),
+	      "Telegram не ответил на список дата-центров",
+	    );
+	    final configResult = config.result;
+	    if (configResult is t.Config) {
+	      for (final dc in configResult.dcOptions.whereType<t.DcOption>()) {
+	        if (!dc.ipv6 && dc.port == 443 && dc.id == dcId) {
+	          return dc;
+	        }
+	      }
+	    }
+
+	    throw TelegramMtprotoException(
+	      "Telegram не вернул дата-центр $dcId",
+	    );
+	  }
 
   void _loadDc() {
     final prefs = KVStoreService.sharedPreferences;
@@ -788,22 +1003,41 @@ class TelegramMtprotoService {
     await prefs.setInt(_dcPortKey, dc.port);
   }
 
-  Future<tg.AuthorizationKey?> _readAuthKey() async {
-    final raw = await _readSecure(_authKeyKey);
-    if (raw == null || raw.isEmpty) return null;
+	  String _authKeyStorageKey(int dcId) => "${_authKeyKey}_dc_$dcId";
 
-    try {
+	  Future<tg.AuthorizationKey?> _readAuthKey({
+	    int? dcId,
+	    bool allowLegacyFallback = true,
+	  }) async {
+	    final targetDcId = dcId ?? _dc.id;
+	    final raw = await _readSecure(_authKeyStorageKey(targetDcId)) ??
+	        (allowLegacyFallback ? await _readSecure(_authKeyKey) : null);
+	    return _decodeAuthKey(raw);
+	  }
+
+	  tg.AuthorizationKey? _decodeAuthKey(String? raw) {
+	    if (raw == null || raw.isEmpty) return null;
+
+	    try {
       return tg.AuthorizationKey.fromJson(
         jsonDecode(raw) as Map<String, dynamic>,
       );
-    } catch (_) {
-      return null;
-    }
-  }
+	    } catch (_) {
+	      return null;
+	    }
+	  }
 
-  Future<void> _persistAuthKey(tg.AuthorizationKey key) async {
-    await _writeSecure(_authKeyKey, jsonEncode(key.toJson()));
-  }
+	  Future<void> _persistAuthKey(
+	    tg.AuthorizationKey key, {
+	    int? dcId,
+	    bool updateLegacy = true,
+	  }) async {
+	    final encoded = jsonEncode(key.toJson());
+	    await _writeSecure(_authKeyStorageKey(dcId ?? _dc.id), encoded);
+	    if (updateLegacy) {
+	      await _writeSecure(_authKeyKey, encoded);
+	    }
+	  }
 
   Future<String?> _readSecure(String key) async {
     try {

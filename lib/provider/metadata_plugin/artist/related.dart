@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:etgmusic/models/metadata/metadata.dart';
 import 'package:etgmusic/provider/metadata_plugin/metadata_plugin_provider.dart';
 import 'package:etgmusic/provider/metadata_plugin/utils/family_paginated.dart';
+import 'package:etgmusic/services/telegram/telegram_media.dart';
 
 class MetadataPluginArtistRelatedArtistsNotifier
     extends FamilyPaginatedAsyncNotifier<SpotubeFullArtistObject, String> {
@@ -20,6 +21,7 @@ class MetadataPluginArtistRelatedArtistsNotifier
   @override
   build(arg) async {
     ref.watch(metadataPluginProvider);
+    ref.watch(telegramMediaRevisionProvider);
     return await fetch(0, 20);
   }
 }
