@@ -12,7 +12,6 @@ import 'package:etgmusic/components/fallbacks/error_box.dart';
 import 'package:etgmusic/components/fallbacks/no_default_metadata_plugin.dart';
 import 'package:etgmusic/components/titlebar/titlebar.dart';
 import 'package:etgmusic/extensions/context.dart';
-import 'package:etgmusic/extensions/string.dart';
 import 'package:etgmusic/hooks/controllers/use_shadcn_text_editing_controller.dart';
 import 'package:etgmusic/pages/search/tabs/albums.dart';
 import 'package:etgmusic/pages/search/tabs/all.dart';
@@ -216,7 +215,7 @@ class SearchPage extends HookConsumerWidget {
                                         );
                                   },
                                 ),
-                          child: Text(chip.capitalize()),
+                          child: Text(_chipLabel(chip.toString())),
                           onPressed: () {
                             selectedChip.value = chip;
                           },
@@ -242,4 +241,9 @@ class SearchPage extends HookConsumerWidget {
       ),
     );
   }
+}
+
+String _chipLabel(String value) {
+  if (value.isEmpty) return value;
+  return "${value[0].toUpperCase()}${value.substring(1)}";
 }
