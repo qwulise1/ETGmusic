@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show Navigator, TextEditingController;
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
+import 'package:shadcn_flutter/shadcn_flutter_extension.dart';
 import 'package:etgmusic/collections/routes.dart';
 import 'package:etgmusic/collections/routes.gr.dart';
 import 'package:etgmusic/components/dialogs/playlist_add_track_dialog.dart';
