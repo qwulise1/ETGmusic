@@ -10,6 +10,7 @@ import 'package:etgmusic/models/metadata/metadata.dart';
 import 'package:etgmusic/pages/lyrics/plain_lyrics.dart';
 import 'package:etgmusic/pages/lyrics/synced_lyrics.dart';
 import 'package:etgmusic/provider/audio_player/audio_player.dart';
+import 'package:etgmusic/provider/lyrics/synced.dart';
 
 @RoutePage()
 class PlayerLyricsPage extends HookConsumerWidget {
@@ -27,6 +28,13 @@ class PlayerLyricsPage extends HookConsumerWidget {
     );
     final selectedIndex = useState(0);
     final palette = usePaletteColor(albumArt, ref);
+    final lyricsMap = ref.watch(syncedLyricsMapProvider(playlist.activeTrack));
+    final hasOnlyPlainLyrics = lyricsMap.asData?.value.static == true;
+
+    useEffect(() {
+      if (hasOnlyPlainLyrics) selectedIndex.value = 1;
+      return null;
+    }, [playlist.activeTrack?.id, hasOnlyPlainLyrics]);
 
     final tabbar = TabList(
       index: selectedIndex.value,

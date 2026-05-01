@@ -13,6 +13,7 @@ import 'package:etgmusic/hooks/utils/use_force_update.dart';
 import 'package:etgmusic/pages/lyrics/plain_lyrics.dart';
 import 'package:etgmusic/pages/lyrics/synced_lyrics.dart';
 import 'package:etgmusic/provider/audio_player/audio_player.dart';
+import 'package:etgmusic/provider/lyrics/synced.dart';
 import 'package:etgmusic/utils/platform.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:auto_route/auto_route.dart';
@@ -33,6 +34,13 @@ class MiniLyricsPage extends HookConsumerWidget {
     final playlistQueue = ref.watch(audioPlayerProvider);
 
     final index = useState(0);
+    final lyricsMap = ref.watch(syncedLyricsMapProvider(playlistQueue.activeTrack));
+    final hasOnlyPlainLyrics = lyricsMap.asData?.value.static == true;
+
+    useEffect(() {
+      if (hasOnlyPlainLyrics) index.value = 1;
+      return null;
+    }, [playlistQueue.activeTrack?.id, hasOnlyPlainLyrics]);
 
     final areaActive = useState(false);
     final hoverMode = useState(true);

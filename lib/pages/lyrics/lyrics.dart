@@ -33,6 +33,13 @@ class LyricsPage extends HookConsumerWidget {
     );
     final palette = usePaletteColor(albumArt, ref);
     final selectedIndex = useState(0);
+    final lyricsMap = ref.watch(syncedLyricsMapProvider(playlist.activeTrack));
+    final hasOnlyPlainLyrics = lyricsMap.asData?.value.static == true;
+
+    useEffect(() {
+      if (hasOnlyPlainLyrics) selectedIndex.value = 1;
+      return null;
+    }, [playlist.activeTrack?.id, hasOnlyPlainLyrics]);
 
     Widget tabbar = Padding(
       padding: const EdgeInsets.all(10),

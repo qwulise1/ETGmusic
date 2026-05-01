@@ -1,7 +1,9 @@
 import 'dart:io';
 
 import 'package:auto_route/auto_route.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' show Navigator, TextEditingController;
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:etgmusic/collections/routes.dart';
@@ -21,6 +23,7 @@ import 'package:etgmusic/provider/metadata_plugin/library/playlists.dart';
 import 'package:etgmusic/provider/metadata_plugin/library/tracks.dart';
 import 'package:etgmusic/provider/metadata_plugin/metadata_plugin_provider.dart';
 import 'package:etgmusic/services/metadata/errors/exceptions.dart';
+import 'package:etgmusic/services/telegram/telegram_media.dart';
 
 enum TrackOptionValue {
   album,
@@ -36,6 +39,7 @@ enum TrackOptionValue {
   details,
   download,
   startRadio,
+  editMetadata,
 }
 
 class TrackOptionsActions {
@@ -52,6 +56,8 @@ class TrackOptionsActions {
   DownloadManagerNotifier get downloadManager =>
       ref.read(downloadManagerProvider.notifier);
   BlackListNotifier get blacklist => ref.read(blacklistProvider.notifier);
+
+  bool get isTelegramTrack => track.id.startsWith("telegram:");
 
   void actionShare(BuildContext context) {
     Clipboard.setData(ClipboardData(text: track.externalUri)).then((_) {
@@ -129,6 +135,97 @@ class TrackOptionsActions {
           return e.id == track.id || isDuplicate;
         }),
     );
+  }
+
+  Future<void> actionEditMetadata(BuildContext context) async {
+    if (!isTelegramTrack) return;
+
+    final nameController = TextEditingController(text: track.name);
+    final artistController = TextEditingController(
+      text: track.artists.map((artist) => artist.name).join(", "),
+    );
+    final albumController = TextEditingController(text: track.album.name);
+    final coverController = TextEditingController(
+      text: track.album.images.firstOrNull?.url ?? "",
+    );
+
+    try {
+      final saved = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text("Редактировать трек"),
+            content: SizedBox(
+              width: 460,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                spacing: 10,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    placeholder: const Text("Точное название трека"),
+                  ),
+                  TextField(
+                    controller: artistController,
+                    placeholder: const Text("Исполнитель"),
+                  ),
+                  TextField(
+                    controller: albumController,
+                    placeholder: const Text("Альбом / источник"),
+                  ),
+                  TextField(
+                    controller: coverController,
+                    placeholder: const Text("URL обложки, если нужна вручную"),
+                  ),
+                  Text(
+                    "Эти данные используются для поиска текста на LRCLib/Genius и отображения в ETGmusic. Оригинал Telegram не меняется.",
+                    style: context.theme.typography.xSmall.copyWith(
+                      color: context.theme.colorScheme.mutedForeground,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              Button.outline(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text("Отмена"),
+              ),
+              Button.primary(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text("Сохранить"),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (saved != true) return;
+
+      await ref.read(telegramMediaServiceProvider).updateTrackMetadata(
+            track.id,
+            name: nameController.text,
+            artist: artistController.text,
+            album: albumController.text,
+            coverUrl: coverController.text,
+          );
+
+      if (!context.mounted) return;
+      showToast(
+        context: context,
+        location: ToastLocation.topRight,
+        builder: (context, overlay) {
+          return const SurfaceCard(
+            child: Text("Метаданные Telegram-трека сохранены"),
+          );
+        },
+      );
+    } finally {
+      nameController.dispose();
+      artistController.dispose();
+      albumController.dispose();
+      coverController.dispose();
+    }
   }
 
   Future<void> action(
@@ -251,6 +348,9 @@ class TrackOptionsActions {
         break;
       case TrackOptionValue.startRadio:
         actionStartRadio(context);
+        break;
+      case TrackOptionValue.editMetadata:
+        await actionEditMetadata(context);
         break;
     }
   }

@@ -45,6 +45,7 @@ class TrackOptions extends HookConsumerWidget {
       :downloadTask
     ) = ref.watch(trackOptionsStateProvider(track));
     final isLocalTrack = track is SpotubeLocalTrackObject;
+    final isTelegramTrack = track.id.startsWith("telegram:");
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -155,6 +156,20 @@ class TrackOptions extends HookConsumerWidget {
             ),
           ),
         if (isAuthenticated && !isLocalTrack) ...[
+          if (isTelegramTrack)
+            ButtonTile(
+              style: ButtonVariance.menu,
+              onPressed: () async {
+                await trackOptionActions.action(
+                  rootNavigatorKey.currentContext!,
+                  TrackOptionValue.editMetadata,
+                  playlistId,
+                );
+                onTapItem?.call();
+              },
+              leading: const Icon(SpotubeIcons.edit),
+              title: const Text("Редактировать название"),
+            ),
           ButtonTile(
             style: ButtonVariance.menu,
             onPressed: () async {

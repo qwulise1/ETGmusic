@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
+import 'package:html/parser.dart' as html_parser;
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:lrc/lrc.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -39,6 +40,11 @@ class SyncedLyricsNotifier
       if (result != null) return result;
     }
 
+    for (final query in queries) {
+      final result = await _fetchGeniusLyrics(query, options);
+      if (result != null) return result;
+    }
+
     return SubtitleSimple(
       lyrics: [],
       name: _track.name,
@@ -46,6 +52,83 @@ class SyncedLyricsNotifier
       rating: 0,
       provider: "LRCLib",
     );
+  }
+
+  Future<SubtitleSimple?> _fetchGeniusLyrics(
+    _LyricsQuery query,
+    Options options,
+  ) async {
+    final searchQuery = query.queryText;
+    if (searchQuery == null) return null;
+
+    try {
+      final search = await globalDio.getUri(
+        Uri(
+          scheme: "https",
+          host: "genius.com",
+          path: "/api/search/multi",
+          queryParameters: {"q": searchQuery},
+        ),
+        options: options,
+      );
+
+      final data = search.data;
+      if (data is! Map) return null;
+
+      final sections = (data["response"] as Map?)?["sections"];
+      if (sections is! List) return null;
+
+      String? url;
+      for (final section in sections.whereType<Map>()) {
+        final hits = section["hits"];
+        if (hits is! List) continue;
+        for (final hit in hits.whereType<Map>()) {
+          final result = hit["result"];
+          if (result is! Map) continue;
+          url = _string(result["url"]);
+          if (url != null) break;
+        }
+        if (url != null) break;
+      }
+
+      if (url == null) return null;
+
+      final page = await globalDio.getUri(
+        Uri.parse(url),
+        options: options.copyWith(responseType: ResponseType.plain),
+      );
+      final rawHtml = page.data?.toString();
+      if (rawHtml == null || rawHtml.isEmpty) return null;
+
+      final document = html_parser.parse(rawHtml);
+      final containers = document.querySelectorAll("[data-lyrics-container]");
+      final text = containers
+          .map((node) {
+            final html = node.innerHtml.replaceAll(
+              RegExp(r"<br\s*/?>", caseSensitive: false),
+              "\n",
+            );
+            return html_parser.parseFragment(html).text ?? "";
+          })
+          .join("\n")
+          .replaceAll(RegExp(r"\n{3,}"), "\n\n")
+          .trim();
+
+      if (text.isEmpty) return null;
+
+      return SubtitleSimple(
+        lyrics: text
+            .split("\n")
+            .map((line) => LyricSlice(text: line.trim(), time: Duration.zero))
+            .toList(),
+        name: _track.name,
+        uri: Uri.parse(url),
+        rating: 0,
+        provider: "Genius",
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<SubtitleSimple?> _fetchLrcLibExact(
@@ -290,6 +373,20 @@ class _LyricsQuery {
       if (cleanArtist != null) "artist_name": cleanArtist,
       if (_string(albumName) != null) "album_name": _string(albumName)!,
     };
+  }
+
+  String? get queryText {
+    final cleanQuery = _string(query);
+    if (cleanQuery != null) return cleanQuery;
+
+    final cleanTrack = _string(trackName);
+    if (cleanTrack == null) return null;
+
+    final cleanArtist = _string(artistName);
+    return [cleanArtist, cleanTrack]
+        .whereType<String>()
+        .where((value) => value.trim().isNotEmpty)
+        .join(" ");
   }
 }
 

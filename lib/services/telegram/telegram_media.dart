@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:collection/collection.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:etgmusic/provider/database/database.dart';
 import 'package:etgmusic/models/metadata/metadata.dart';
 import 'package:etgmusic/provider/telegram/telegram_auth.dart';
 import 'package:etgmusic/services/dio/dio.dart';
@@ -70,6 +71,35 @@ class TelegramMediaService {
         .firstOrNull;
   }
 
+  Future<void> updateTrackMetadata(
+    String id, {
+    required String name,
+    required String artist,
+    required String album,
+    String? coverUrl,
+  }) async {
+    final records = await _readStoredTracks();
+    final index = records.indexWhere((track) => track.id == id);
+    if (index < 0) {
+      throw const TelegramMediaException("Telegram-трек не найден");
+    }
+
+    final record = records[index];
+    records[index] = record.copyWith(
+      manualName: name.trim().isEmpty ? null : name.trim(),
+      manualArtist: artist.trim().isEmpty ? null : artist.trim(),
+      manualAlbum: album.trim().isEmpty ? null : album.trim(),
+      coverUrl: coverUrl?.trim().isEmpty == true ? null : coverUrl?.trim(),
+    );
+
+    await _writeStoredTracks(records);
+    final database = ref.read(databaseProvider);
+    await (database.delete(database.lyricsTable)
+          ..where((table) => table.trackId.equals(id)))
+        .go();
+    ref.read(telegramMediaRevisionProvider.notifier).state++;
+  }
+
   Future<TelegramSyncResult> syncBotUpdates() async {
     final token = await ref.read(telegramAuthProvider.notifier).readBotToken();
     if (token == null || token.trim().isEmpty) {
@@ -125,6 +155,10 @@ class TelegramMediaService {
       final fileId = media.fileId;
       final filePath = await _getFilePath(token, fileId);
       if (filePath == null) continue;
+      final thumbnailFileId = media.thumbnailFileId;
+      final coverPath = thumbnailFileId == null
+          ? null
+          : await _getFilePath(token, thumbnailFileId);
 
       final record = TelegramTrackRecord(
         id: "telegram:${media.fileUniqueId ?? fileId}",
@@ -136,13 +170,26 @@ class TelegramMediaService {
         messageId: _asInt(message["message_id"]) ?? 0,
         durationMs: media.durationMs,
         fileUrl: "https://api.telegram.org/file/bot$token/$filePath",
+        coverUrl: coverPath == null
+            ? null
+            : "https://api.telegram.org/file/bot$token/$coverPath",
+        coverWidth: media.thumbnailWidth,
+        coverHeight: media.thumbnailHeight,
         mimeType: media.mimeType,
         fileName: media.fileName,
         addedAt: DateTime.now(),
       );
 
-      if (!recordsById.containsKey(record.id)) added++;
-      recordsById[record.id] = record;
+      final previous = recordsById[record.id];
+      if (previous == null) added++;
+      recordsById[record.id] = previous == null
+          ? record
+          : record.copyWith(
+              manualName: previous.manualName,
+              manualArtist: previous.manualArtist,
+              manualAlbum: previous.manualAlbum,
+              coverUrl: previous.coverUrl ?? record.coverUrl,
+            );
     }
 
     if (maxUpdateId != null) {
@@ -257,8 +304,14 @@ class TelegramTrackRecord {
   final int messageId;
   final int durationMs;
   final String fileUrl;
+  final String? coverUrl;
+  final int? coverWidth;
+  final int? coverHeight;
   final String? mimeType;
   final String? fileName;
+  final String? manualName;
+  final String? manualArtist;
+  final String? manualAlbum;
   final DateTime addedAt;
 
   const TelegramTrackRecord({
@@ -271,8 +324,14 @@ class TelegramTrackRecord {
     required this.messageId,
     required this.durationMs,
     required this.fileUrl,
+    this.coverUrl,
+    this.coverWidth,
+    this.coverHeight,
     this.mimeType,
     this.fileName,
+    this.manualName,
+    this.manualArtist,
+    this.manualAlbum,
     required this.addedAt,
   });
 
@@ -287,8 +346,14 @@ class TelegramTrackRecord {
       messageId: _asInt(json["message_id"]) ?? 0,
       durationMs: _asInt(json["duration_ms"]) ?? 0,
       fileUrl: json["file_url"].toString(),
+      coverUrl: _string(json["cover_url"]),
+      coverWidth: _asInt(json["cover_width"]),
+      coverHeight: _asInt(json["cover_height"]),
       mimeType: _string(json["mime_type"]),
       fileName: _string(json["file_name"]),
+      manualName: _string(json["manual_name"]),
+      manualArtist: _string(json["manual_artist"]),
+      manualAlbum: _string(json["manual_album"]),
       addedAt: DateTime.tryParse(json["added_at"]?.toString() ?? "") ??
           DateTime.fromMillisecondsSinceEpoch(0),
     );
@@ -305,16 +370,60 @@ class TelegramTrackRecord {
       "message_id": messageId,
       "duration_ms": durationMs,
       "file_url": fileUrl,
+      "cover_url": coverUrl,
+      "cover_width": coverWidth,
+      "cover_height": coverHeight,
       "mime_type": mimeType,
       "file_name": fileName,
+      "manual_name": manualName,
+      "manual_artist": manualArtist,
+      "manual_album": manualAlbum,
       "added_at": addedAt.toIso8601String(),
     };
   }
 
+  TelegramTrackRecord copyWith({
+    String? manualName,
+    String? manualArtist,
+    String? manualAlbum,
+    String? coverUrl,
+  }) {
+    return TelegramTrackRecord(
+      id: id,
+      name: name,
+      artist: artist,
+      album: album,
+      chatId: chatId,
+      chatTitle: chatTitle,
+      messageId: messageId,
+      durationMs: durationMs,
+      fileUrl: fileUrl,
+      coverUrl: coverUrl ?? this.coverUrl,
+      coverWidth: coverWidth,
+      coverHeight: coverHeight,
+      mimeType: mimeType,
+      fileName: fileName,
+      manualName: manualName,
+      manualArtist: manualArtist,
+      manualAlbum: manualAlbum,
+      addedAt: addedAt,
+    );
+  }
+
   SpotubeFullTrackObject toMetadata() {
     final parsed = _isGenericArtist(artist) ? _splitArtistTitle(name) : null;
-    final effectiveName = parsed?.title ?? name;
-    final effectiveArtist = parsed?.artist ?? artist;
+    final effectiveName = manualName ?? parsed?.title ?? name;
+    final effectiveArtist = manualArtist ?? parsed?.artist ?? artist;
+    final effectiveAlbum = manualAlbum ?? album;
+    final images = coverUrl == null
+        ? <SpotubeImageObject>[]
+        : [
+            SpotubeImageObject(
+              url: coverUrl!,
+              width: coverWidth,
+              height: coverHeight,
+            ),
+          ];
     final artistObject = SpotubeSimpleArtistObject(
       id: "telegram:$chatId:$effectiveArtist",
       name: effectiveArtist,
@@ -328,9 +437,10 @@ class TelegramTrackRecord {
       artists: [artistObject],
       album: SpotubeSimpleAlbumObject(
         id: "telegram:$chatId",
-        name: album,
+        name: effectiveAlbum,
         externalUri: "telegram:$chatId",
         artists: [artistObject],
+        images: images,
         albumType: SpotubeAlbumType.album,
         releaseDate: addedAt.year.toString(),
       ),
@@ -370,6 +480,9 @@ class _TelegramMedia {
   final int durationMs;
   final String? mimeType;
   final String? fileName;
+  final String? thumbnailFileId;
+  final int? thumbnailWidth;
+  final int? thumbnailHeight;
 
   const _TelegramMedia({
     required this.fileId,
@@ -379,6 +492,9 @@ class _TelegramMedia {
     required this.durationMs,
     this.mimeType,
     this.fileName,
+    this.thumbnailFileId,
+    this.thumbnailWidth,
+    this.thumbnailHeight,
   });
 
   factory _TelegramMedia.fromAudio(Map<String, dynamic> audio) {
@@ -392,6 +508,7 @@ class _TelegramMedia {
     final parsed = parsedBasename ?? parsedTitle;
     final title =
         performer == null && parsedTitle != null ? parsedTitle.title : rawTitle;
+    final thumbnail = _thumbnail(audio);
 
     return _TelegramMedia(
       fileId: audio["file_id"].toString(),
@@ -401,6 +518,9 @@ class _TelegramMedia {
       durationMs: (_asInt(audio["duration"]) ?? 0) * 1000,
       mimeType: _string(audio["mime_type"]),
       fileName: fileName,
+      thumbnailFileId: thumbnail?.fileId,
+      thumbnailWidth: thumbnail?.width,
+      thumbnailHeight: thumbnail?.height,
     );
   }
 
@@ -420,6 +540,7 @@ class _TelegramMedia {
 
     final title = _basename(fileName) ?? "Telegram audio";
     final parsed = _splitArtistTitle(title);
+    final thumbnail = _thumbnail(document);
 
     return _TelegramMedia(
       fileId: document["file_id"].toString(),
@@ -429,12 +550,16 @@ class _TelegramMedia {
       durationMs: 0,
       mimeType: mimeType.isEmpty ? null : mimeType,
       fileName: fileName,
+      thumbnailFileId: thumbnail?.fileId,
+      thumbnailWidth: thumbnail?.width,
+      thumbnailHeight: thumbnail?.height,
     );
   }
 
   factory _TelegramMedia.fromVideo(Map<String, dynamic> video) {
     final title = _basename(_string(video["file_name"])) ?? "Telegram video";
     final parsed = _splitArtistTitle(title);
+    final thumbnail = _thumbnail(video);
 
     return _TelegramMedia(
       fileId: video["file_id"].toString(),
@@ -444,6 +569,9 @@ class _TelegramMedia {
       durationMs: (_asInt(video["duration"]) ?? 0) * 1000,
       mimeType: _string(video["mime_type"]),
       fileName: _string(video["file_name"]),
+      thumbnailFileId: thumbnail?.fileId,
+      thumbnailWidth: thumbnail?.width,
+      thumbnailHeight: thumbnail?.height,
     );
   }
 }
@@ -465,6 +593,31 @@ String? _basename(String? fileName) {
   final cleaned = fileName.split("/").last;
   final dot = cleaned.lastIndexOf(".");
   return dot <= 0 ? cleaned : cleaned.substring(0, dot);
+}
+
+_TelegramThumbnail? _thumbnail(Map<String, dynamic> data) {
+  final raw = data["thumbnail"] ?? data["thumb"];
+  if (raw is! Map) return null;
+  final fileId = _string(raw["file_id"]);
+  if (fileId == null) return null;
+
+  return _TelegramThumbnail(
+    fileId: fileId,
+    width: _asInt(raw["width"]),
+    height: _asInt(raw["height"]),
+  );
+}
+
+class _TelegramThumbnail {
+  final String fileId;
+  final int? width;
+  final int? height;
+
+  const _TelegramThumbnail({
+    required this.fileId,
+    this.width,
+    this.height,
+  });
 }
 
 bool _isGenericArtist(String value) {
