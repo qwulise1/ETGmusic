@@ -13,6 +13,7 @@ import 'package:etgmusic/provider/metadata_plugin/metadata_plugin_provider.dart'
 import 'package:etgmusic/services/dio/dio.dart';
 import 'package:etgmusic/services/logger/logger.dart';
 import 'package:etgmusic/services/metadata/errors/exceptions.dart';
+import 'package:etgmusic/services/telegram/telegram_media.dart';
 
 import 'package:etgmusic/services/sourced_track/exceptions.dart';
 import 'package:etgmusic/utils/service_utils.dart';
@@ -37,6 +38,7 @@ class SourcedTrack extends BasicSourcedTrack {
   factory SourcedTrack._fromTelegramDirect({
     required Ref ref,
     required SpotubeFullTrackObject query,
+    required String streamUrl,
   }) {
     final info = SpotubeAudioSourceMatchObject(
       id: query.id,
@@ -54,8 +56,8 @@ class SourcedTrack extends BasicSourcedTrack {
       siblings: const [],
       sources: [
         SpotubeAudioSourceStreamObject(
-          url: query.externalUri,
-          container: _containerFromTelegramUrl(query.externalUri),
+          url: streamUrl,
+          container: _containerFromTelegramUrl(streamUrl),
           type: SpotubeMediaCompressionType.lossy,
           bitrate: 192000.0,
         ),
@@ -68,7 +70,14 @@ class SourcedTrack extends BasicSourcedTrack {
     required Ref ref,
   }) async {
     if (_isTelegramDirectTrack(query)) {
-      return SourcedTrack._fromTelegramDirect(ref: ref, query: query);
+      final streamUrl = await ref
+          .read(telegramMediaServiceProvider)
+          .resolvePlayableUrl(query.id);
+      return SourcedTrack._fromTelegramDirect(
+        ref: ref,
+        query: query,
+        streamUrl: streamUrl,
+      );
     }
 
     final audioSource = await ref.read(audioSourcePluginProvider.future);
@@ -416,7 +425,8 @@ class SourcedTrack extends BasicSourcedTrack {
 
 bool _isTelegramDirectTrack(SpotubeFullTrackObject track) {
   return track.id.startsWith("telegram:") &&
-      track.externalUri.startsWith("https://api.telegram.org/file/bot");
+      (track.externalUri.startsWith("https://api.telegram.org/file/bot") ||
+          track.externalUri.startsWith("telegram-mtproto://"));
 }
 
 String _containerFromTelegramUrl(String url) {

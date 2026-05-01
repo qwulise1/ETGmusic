@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:collection/collection.dart';
 import 'package:dio/dio.dart';
@@ -8,6 +9,9 @@ import 'package:etgmusic/models/metadata/metadata.dart';
 import 'package:etgmusic/provider/telegram/telegram_auth.dart';
 import 'package:etgmusic/services/dio/dio.dart';
 import 'package:etgmusic/services/kv_store/kv_store.dart';
+import 'package:etgmusic/services/telegram/telegram_mtproto.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 final telegramMediaRevisionProvider = StateProvider<int>((ref) => 0);
 
@@ -30,6 +34,7 @@ class TelegramMediaService {
   static const _tracksKey = "telegram_media_tracks";
   static const _sourcesKey = "telegram_media_sources";
   static const _updateOffsetKey = "telegram_media_update_offset";
+  final TelegramMtprotoService _mtproto = TelegramMtprotoService();
 
   final Ref ref;
 
@@ -211,6 +216,150 @@ class TelegramMediaService {
     );
   }
 
+  Future<TelegramSyncResult> syncUserSessionHistory() async {
+    final auth = await ref.read(telegramAuthProvider.future);
+    if (!auth.isUserSessionConnected) {
+      throw const TelegramMediaException("Сначала подключи Telegram-сессию");
+    }
+
+    final sourceFilters = await loadSourceFilters();
+    final recordsById = {
+      for (final track in await _readStoredTracks()) track.id: track,
+    };
+    final tracks = await _mtproto.fetchAudioFromSources(sourceFilters);
+    var added = 0;
+
+    for (final track in tracks) {
+      final id = "telegram:mtproto:${track.documentId}";
+      final previous = recordsById[id];
+      if (previous == null) added++;
+
+      final coverUrl = await _cacheMtprotoCover(track).catchError(
+        (_) => previous?.coverUrl,
+      );
+
+      final record = TelegramTrackRecord(
+        id: id,
+        name: track.title,
+        artist: track.artist,
+        album: track.album,
+        chatId: track.chatId,
+        chatTitle: track.chatTitle,
+        messageId: track.messageId,
+        durationMs: track.durationMs,
+        fileUrl: "telegram-mtproto://document/${track.documentId}",
+        coverUrl: coverUrl ?? previous?.coverUrl,
+        mimeType: track.mimeType,
+        fileName: track.fileName,
+        mtprotoDocumentId: track.documentId,
+        mtprotoAccessHash: track.accessHash,
+        mtprotoFileReference: track.fileReferenceBase64,
+        mtprotoDcId: track.dcId,
+        mtprotoSize: track.size,
+        mtprotoThumbSize: track.thumbSize,
+        addedAt: track.addedAt,
+      );
+
+      recordsById[id] = previous == null
+          ? record
+          : record.copyWith(
+              manualName: previous.manualName,
+              manualArtist: previous.manualArtist,
+              manualAlbum: previous.manualAlbum,
+              coverUrl: previous.coverUrl ?? record.coverUrl,
+            );
+    }
+
+    final records = recordsById.values.toList()
+      ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
+    await _writeStoredTracks(records);
+    ref.read(telegramMediaRevisionProvider.notifier).state++;
+
+    return TelegramSyncResult(
+      total: records.length,
+      added: added,
+      scanned: tracks.length,
+    );
+  }
+
+  Future<String> resolvePlayableUrl(String trackId) async {
+    final record = (await _readStoredTracks()).firstWhereOrNull(
+      (track) => track.id == trackId,
+    );
+    if (record == null) {
+      throw const TelegramMediaException("Telegram-трек не найден");
+    }
+
+    if (!record.fileUrl.startsWith("telegram-mtproto://")) {
+      return record.fileUrl;
+    }
+
+    final documentId = record.mtprotoDocumentId;
+    final accessHash = record.mtprotoAccessHash;
+    final fileReference = record.mtprotoFileReference;
+    final size = record.mtprotoSize;
+    if (documentId == null ||
+        accessHash == null ||
+        fileReference == null ||
+        size == null) {
+      throw const TelegramMediaException(
+        "У MTProto-трека нет данных документа",
+      );
+    }
+
+    final cacheFile = await _mtprotoAudioCacheFile(record);
+    if (await cacheFile.exists() && await cacheFile.length() > 0) {
+      return cacheFile.uri.toString();
+    }
+
+    final bytes = await _mtproto.downloadDocument(
+      documentId: documentId,
+      accessHash: accessHash,
+      fileReferenceBase64: fileReference,
+      size: size,
+    );
+    await cacheFile.create(recursive: true);
+    await cacheFile.writeAsBytes(bytes, flush: true);
+    return cacheFile.uri.toString();
+  }
+
+  Future<String?> _cacheMtprotoCover(TelegramMtprotoTrack track) async {
+    final thumbSize = track.thumbSize;
+    if (thumbSize == null || thumbSize.isEmpty) return null;
+
+    final dir = await _telegramCacheDir("covers");
+    final file = File(p.join(dir.path, "${track.documentId}-$thumbSize.jpg"));
+    if (await file.exists() && await file.length() > 0) return file.path;
+
+    final bytes = await _mtproto.downloadDocument(
+      documentId: track.documentId,
+      accessHash: track.accessHash,
+      fileReferenceBase64: track.fileReferenceBase64,
+      size: 0,
+      thumbSize: thumbSize,
+    );
+    if (bytes.isEmpty) return null;
+    await file.create(recursive: true);
+    await file.writeAsBytes(bytes, flush: true);
+    return file.path;
+  }
+
+  Future<File> _mtprotoAudioCacheFile(TelegramTrackRecord record) async {
+    final dir = await _telegramCacheDir("audio");
+    final extension = _extensionFromRecord(record);
+    final basename = _sanitizeFilePart(
+      "${record.mtprotoDocumentId ?? record.id}-${record.name}.$extension",
+    );
+    return File(p.join(dir.path, basename));
+  }
+
+  Future<Directory> _telegramCacheDir(String child) async {
+    final base = await getApplicationCacheDirectory();
+    final dir = Directory(p.join(base.path, "telegram", child));
+    if (!await dir.exists()) await dir.create(recursive: true);
+    return dir;
+  }
+
   Future<List<TelegramTrackRecord>> _readStoredTracks() async {
     final raw = KVStoreService.sharedPreferences.getString(_tracksKey);
     if (raw == null || raw.isEmpty) return [];
@@ -312,6 +461,12 @@ class TelegramTrackRecord {
   final String? manualName;
   final String? manualArtist;
   final String? manualAlbum;
+  final int? mtprotoDocumentId;
+  final int? mtprotoAccessHash;
+  final String? mtprotoFileReference;
+  final int? mtprotoDcId;
+  final int? mtprotoSize;
+  final String? mtprotoThumbSize;
   final DateTime addedAt;
 
   const TelegramTrackRecord({
@@ -332,6 +487,12 @@ class TelegramTrackRecord {
     this.manualName,
     this.manualArtist,
     this.manualAlbum,
+    this.mtprotoDocumentId,
+    this.mtprotoAccessHash,
+    this.mtprotoFileReference,
+    this.mtprotoDcId,
+    this.mtprotoSize,
+    this.mtprotoThumbSize,
     required this.addedAt,
   });
 
@@ -354,6 +515,12 @@ class TelegramTrackRecord {
       manualName: _string(json["manual_name"]),
       manualArtist: _string(json["manual_artist"]),
       manualAlbum: _string(json["manual_album"]),
+      mtprotoDocumentId: _asInt(json["mtproto_document_id"]),
+      mtprotoAccessHash: _asInt(json["mtproto_access_hash"]),
+      mtprotoFileReference: _string(json["mtproto_file_reference"]),
+      mtprotoDcId: _asInt(json["mtproto_dc_id"]),
+      mtprotoSize: _asInt(json["mtproto_size"]),
+      mtprotoThumbSize: _string(json["mtproto_thumb_size"]),
       addedAt: DateTime.tryParse(json["added_at"]?.toString() ?? "") ??
           DateTime.fromMillisecondsSinceEpoch(0),
     );
@@ -378,6 +545,12 @@ class TelegramTrackRecord {
       "manual_name": manualName,
       "manual_artist": manualArtist,
       "manual_album": manualAlbum,
+      "mtproto_document_id": mtprotoDocumentId,
+      "mtproto_access_hash": mtprotoAccessHash,
+      "mtproto_file_reference": mtprotoFileReference,
+      "mtproto_dc_id": mtprotoDcId,
+      "mtproto_size": mtprotoSize,
+      "mtproto_thumb_size": mtprotoThumbSize,
       "added_at": addedAt.toIso8601String(),
     };
   }
@@ -406,6 +579,12 @@ class TelegramTrackRecord {
       manualName: manualName,
       manualArtist: manualArtist,
       manualAlbum: manualAlbum,
+      mtprotoDocumentId: mtprotoDocumentId,
+      mtprotoAccessHash: mtprotoAccessHash,
+      mtprotoFileReference: mtprotoFileReference,
+      mtprotoDcId: mtprotoDcId,
+      mtprotoSize: mtprotoSize,
+      mtprotoThumbSize: mtprotoThumbSize,
       addedAt: addedAt,
     );
   }
@@ -593,6 +772,30 @@ String? _basename(String? fileName) {
   final cleaned = fileName.split("/").last;
   final dot = cleaned.lastIndexOf(".");
   return dot <= 0 ? cleaned : cleaned.substring(0, dot);
+}
+
+String _extensionFromRecord(TelegramTrackRecord record) {
+  final fileName = record.fileName?.toLowerCase();
+  final dot = fileName?.lastIndexOf(".") ?? -1;
+  if (fileName != null && dot > 0 && dot < fileName.length - 1) {
+    return fileName.substring(dot + 1).replaceAll(RegExp(r"[^a-z0-9]"), "");
+  }
+
+  final mimeType = record.mimeType?.toLowerCase() ?? "";
+  if (mimeType.contains("mpeg")) return "mp3";
+  if (mimeType.contains("mp4")) return "m4a";
+  if (mimeType.contains("flac")) return "flac";
+  if (mimeType.contains("ogg")) return "ogg";
+  if (mimeType.contains("opus")) return "opus";
+  if (mimeType.contains("wav")) return "wav";
+  return "m4a";
+}
+
+String _sanitizeFilePart(String value) {
+  return value
+      .replaceAll(RegExp(r'[\\/:*?"<>|]+'), "_")
+      .replaceAll(RegExp(r"\s+"), " ")
+      .trim();
 }
 
 _TelegramThumbnail? _thumbnail(Map<String, dynamic> data) {

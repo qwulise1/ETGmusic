@@ -44,6 +44,7 @@ jobs:
       - name: Prepare environment
         run: |
           set -euo pipefail
+          mkdir -p build/ci
           cat > .env <<'EOF'
           ENABLE_UPDATE_CHECK=0
           LASTFM_API_KEY=etgmusic
@@ -51,16 +52,26 @@ jobs:
           RELEASE_CHANNEL=stable
           HIDE_DONATIONS=1
           EOF
-          flutter --version
-          flutter pub get
-          dart run build_runner build --delete-conflicting-outputs
+          {
+            flutter --version
+            flutter pub get
+            dart run build_runner build --delete-conflicting-outputs
+          } 2>&1 | tee build/ci/android-build.log
+          status="${PIPESTATUS[0]}"
+          if [ "$status" -ne 0 ]; then
+            {
+              echo "----- Prepare environment failed: tail -----"
+              tail -n 160 build/ci/android-build.log
+            } >&2
+            exit "$status"
+          fi
 
       - name: Build stable APK
         run: |
           set -uo pipefail
           mkdir -p build/ci
           flutter build apk --flavor stable --release --target-platform android-arm,android-arm64,android-x64 \
-            2>&1 | tee build/ci/android-build.log
+            2>&1 | tee -a build/ci/android-build.log
           status="${PIPESTATUS[0]}"
           if [ "$status" -ne 0 ]; then
             {

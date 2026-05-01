@@ -491,7 +491,7 @@ class _TelegramCoreEndpoint {
   }
 
   Future<String> get support async {
-    return "Telegram-источник ETGmusic: подключи бота, добавь его в канал/группу и нажми синхронизацию в настройках.";
+    return "Telegram-источник ETGmusic: подключи бота или Telegram-сессию, укажи каналы/чаты и нажми синхронизацию в настройках.";
   }
 
   Future<void> scrobble(Map<String, dynamic> details) async {}

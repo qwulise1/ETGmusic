@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart' hide Response;
 import 'package:dio/dio.dart' as dio_lib;
@@ -35,6 +36,25 @@ String? get _randomUserAgent => _deviceClients
       Random().nextInt(_deviceClients.length),
     )
     .payload["context"]["client"]["userAgent"];
+
+File? _localFileFromUrl(String? url) {
+  if (url == null || url.isEmpty) return null;
+  final uri = Uri.tryParse(url);
+  if (uri?.scheme == "file") return File.fromUri(uri!);
+  if (url.startsWith("/")) return File(url);
+  return null;
+}
+
+String _contentTypeFromPath(String path) {
+  final lower = path.toLowerCase();
+  if (lower.endsWith(".mp3")) return "audio/mpeg";
+  if (lower.endsWith(".m4a") || lower.endsWith(".mp4")) return "audio/mp4";
+  if (lower.endsWith(".flac")) return "audio/flac";
+  if (lower.endsWith(".ogg")) return "audio/ogg";
+  if (lower.endsWith(".opus")) return "audio/opus";
+  if (lower.endsWith(".wav")) return "audio/wav";
+  return "application/octet-stream";
+}
 
 class ServerPlaybackRoutes {
   final Ref ref;
@@ -86,6 +106,21 @@ class ServerPlaybackRoutes {
       "Headers: ${request.headers}",
     );
 
+    final localFile = _localFileFromUrl(track.url);
+    if (localFile != null && await localFile.exists()) {
+      final fileLength = await localFile.length();
+      return dio_lib.Response(
+        statusCode: 200,
+        headers: Headers.fromMap({
+          "content-type": [_contentTypeFromPath(localFile.path)],
+          "content-length": ["$fileLength"],
+          "accept-ranges": ["bytes"],
+          "content-range": ["bytes 0-${fileLength - 1}/$fileLength"],
+        }),
+        requestOptions: RequestOptions(path: request.requestedUri.toString()),
+      );
+    }
+
     final trackCacheFile = File(await _getTrackCacheFilePath(track));
 
     if (await trackCacheFile.exists() && userPreferences.cacheMusic) {
@@ -133,6 +168,24 @@ class ServerPlaybackRoutes {
       "GET request for track: ${track.query.name}\n"
       "Headers: ${request.headers}",
     );
+
+    final localFile = _localFileFromUrl(track.url);
+    if (localFile != null && await localFile.exists()) {
+      final bytes = await localFile.readAsBytes();
+      final fileLength = bytes.length;
+      return dio_lib.Response<Uint8List>(
+        statusCode: 200,
+        headers: Headers.fromMap({
+          "content-type": [_contentTypeFromPath(localFile.path)],
+          "content-length": ["$fileLength"],
+          "accept-ranges": ["bytes"],
+          "content-range": ["bytes 0-${fileLength - 1}/$fileLength"],
+          "connection": ["close"],
+        }),
+        requestOptions: RequestOptions(path: request.requestedUri.toString()),
+        data: bytes,
+      );
+    }
 
     final trackCacheFile = File(await _getTrackCacheFilePath(track));
 

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:collection/collection.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:t/t.dart' as t;
 import 'package:tg/tg.dart' as tg;
@@ -165,6 +166,97 @@ class TelegramMtprotoService {
     await _persistAuthKey(client.authorizationKey);
   }
 
+  Future<List<TelegramMtprotoTrack>> fetchAudioFromSources(
+    List<String> sourceFilters, {
+    int limitPerSource = 100,
+  }) async {
+    final apiId = _readApiId();
+    final client = await _connect(apiId: apiId);
+    final peers = await _resolvePeers(client, sourceFilters);
+    final tracks = <TelegramMtprotoTrack>[];
+
+    for (final peer in peers) {
+      final response = await client.messages.getHistory(
+        peer: peer.peer,
+        offsetId: 0,
+        offsetDate: DateTime.fromMillisecondsSinceEpoch(0),
+        addOffset: 0,
+        limit: limitPerSource,
+        maxId: 0,
+        minId: 0,
+        hash: 0,
+      );
+
+      final error = response.error;
+      if (error != null) {
+        AppLogger.log.w(
+          "Telegram MTProto history failed for ${peer.title}: "
+          "${error.errorMessage}",
+        );
+        continue;
+      }
+
+      for (final message in _messagesFrom(response.result)) {
+        final track = _trackFromMessage(message, peer);
+        if (track != null) tracks.add(track);
+      }
+    }
+
+    return tracks;
+  }
+
+  Future<Uint8List> downloadDocument({
+    required int documentId,
+    required int accessHash,
+    required String fileReferenceBase64,
+    required int size,
+    String thumbSize = "",
+  }) async {
+    final apiId = _readApiId();
+    final client = await _connect(apiId: apiId);
+    final location = t.InputDocumentFileLocation(
+      id: documentId,
+      accessHash: accessHash,
+      fileReference: base64Decode(fileReferenceBase64),
+      thumbSize: thumbSize,
+    );
+    final builder = BytesBuilder(copy: false);
+    var offset = 0;
+    const chunkSize = 512 * 1024;
+    final targetSize = size <= 0 || thumbSize.isNotEmpty ? chunkSize : size;
+
+    while (offset < targetSize) {
+      final response = await client.upload.getFile(
+        precise: false,
+        cdnSupported: false,
+        location: location,
+        offset: offset,
+        limit: chunkSize,
+      );
+
+      final error = response.error;
+      if (error != null) {
+        throw TelegramMtprotoException(_humanError(error.errorMessage));
+      }
+
+      final result = response.result;
+      if (result is! t.UploadFile) {
+        throw const TelegramMtprotoException(
+          "Telegram не вернул файл через MTProto",
+        );
+      }
+
+      final bytes = result.bytes;
+      if (bytes.isEmpty) break;
+      builder.add(bytes);
+      offset += bytes.length;
+
+      if (bytes.length < chunkSize || thumbSize.isNotEmpty) break;
+    }
+
+    return builder.takeBytes();
+  }
+
   Future<String?> readPhoneNumber() async {
     return KVStoreService.sharedPreferences.getString(_phoneKey);
   }
@@ -243,6 +335,300 @@ class TelegramMtprotoService {
 
     _client = client;
     return client;
+  }
+
+  int _readApiId() {
+    final apiId = KVStoreService.sharedPreferences.getInt(_apiIdKey);
+    if (apiId == null || apiId <= 0) {
+      throw const TelegramMtprotoException("Сначала подключи Telegram-сессию");
+    }
+    return apiId;
+  }
+
+  Future<List<_ResolvedTelegramPeer>> _resolvePeers(
+    tg.Client client,
+    List<String> sourceFilters,
+  ) async {
+    final normalized = sourceFilters
+        .map((source) => source.trim())
+        .where((source) => source.isNotEmpty)
+        .toList();
+
+    final dialogs = await _loadDialogPeers(client);
+    if (normalized.isEmpty) return dialogs.take(40).toList();
+
+    final peers = <_ResolvedTelegramPeer>[];
+    for (final source in normalized) {
+      final direct = _resolveSpecialPeer(source);
+      if (direct != null) {
+        peers.add(direct);
+        continue;
+      }
+
+      final fromDialogs = _matchDialogPeer(dialogs, source);
+      if (fromDialogs != null) {
+        peers.add(fromDialogs);
+        continue;
+      }
+
+      final username = _usernameFromSource(source);
+      if (username == null) continue;
+
+      final resolved = await client.contacts.resolveUsername(
+        username: username,
+      );
+      final error = resolved.error;
+      if (error != null) {
+        AppLogger.log.w(
+          "Telegram MTProto resolve @$username failed: ${error.errorMessage}",
+        );
+        continue;
+      }
+
+      final peer = _peerFromResolved(resolved.result);
+      if (peer != null) peers.add(peer);
+    }
+
+    final seen = <String>{};
+    return peers.where((peer) => seen.add(peer.key)).toList();
+  }
+
+  Future<List<_ResolvedTelegramPeer>> _loadDialogPeers(
+    tg.Client client,
+  ) async {
+    final response = await client.messages.getDialogs(
+      excludePinned: false,
+      offsetDate: DateTime.fromMillisecondsSinceEpoch(0),
+      offsetId: 0,
+      offsetPeer: const t.InputPeerEmpty(),
+      limit: 100,
+      hash: 0,
+    );
+
+    final error = response.error;
+    if (error != null) {
+      throw TelegramMtprotoException(_humanError(error.errorMessage));
+    }
+
+    return _peersFromDialogs(response.result);
+  }
+
+  _ResolvedTelegramPeer? _resolveSpecialPeer(String source) {
+    final normalized = source.trim().toLowerCase();
+    if (normalized == "me" ||
+        normalized == "self" ||
+        normalized == "saved" ||
+        normalized == "избранное") {
+      return const _ResolvedTelegramPeer(
+        peer: t.InputPeerSelf(),
+        id: "self",
+        title: "Избранное",
+      );
+    }
+    return null;
+  }
+
+  _ResolvedTelegramPeer? _matchDialogPeer(
+    List<_ResolvedTelegramPeer> dialogs,
+    String source,
+  ) {
+    final query = source.trim().toLowerCase();
+    return dialogs.firstWhereOrNull(
+      (peer) => peer.candidates.any((candidate) => candidate == query),
+    );
+  }
+
+  String? _usernameFromSource(String source) {
+    final value = source.trim();
+    if (value.isEmpty || int.tryParse(value) != null) return null;
+    final cleaned = value
+        .replaceFirst(RegExp(r"^https?://t\.me/", caseSensitive: false), "")
+        .replaceFirst(RegExp(r"^tg://resolve\?domain=", caseSensitive: false), "")
+        .replaceFirst("@", "")
+        .split("/")
+        .first
+        .trim();
+    if (cleaned.isEmpty || cleaned.contains(" ")) return null;
+    return cleaned;
+  }
+
+  _ResolvedTelegramPeer? _peerFromResolved(t.ContactsResolvedPeerBase? base) {
+    if (base is! t.ContactsResolvedPeer) return null;
+    final peer = base.peer;
+
+    if (peer is t.PeerChannel) {
+      final channel = base.chats.whereType<t.Channel>().firstWhereOrNull(
+            (chat) => chat.id == peer.channelId && chat.accessHash != null,
+          );
+      if (channel == null || channel.accessHash == null) return null;
+      return _ResolvedTelegramPeer(
+        peer: t.InputPeerChannel(
+          channelId: channel.id,
+          accessHash: channel.accessHash!,
+        ),
+        id: channel.id.toString(),
+        title: channel.title,
+        username: channel.username,
+      );
+    }
+
+    if (peer is t.PeerChat) {
+      final chat = base.chats.whereType<t.Chat>().firstWhereOrNull(
+            (chat) => chat.id == peer.chatId,
+          );
+      return _ResolvedTelegramPeer(
+        peer: t.InputPeerChat(chatId: peer.chatId),
+        id: peer.chatId.toString(),
+        title: chat?.title ?? "Telegram chat",
+      );
+    }
+
+    if (peer is t.PeerUser) {
+      final user = base.users.whereType<t.User>().firstWhereOrNull(
+            (user) => user.id == peer.userId,
+          );
+      if (user == null) return null;
+      return _peerFromUser(user);
+    }
+
+    return null;
+  }
+
+  List<_ResolvedTelegramPeer> _peersFromDialogs(
+    t.MessagesDialogsBase? dialogs,
+  ) {
+    final chats = switch (dialogs) {
+      t.MessagesDialogs(:final chats) => chats,
+      t.MessagesDialogsSlice(:final chats) => chats,
+      _ => const <t.ChatBase>[],
+    };
+    final users = switch (dialogs) {
+      t.MessagesDialogs(:final users) => users,
+      t.MessagesDialogsSlice(:final users) => users,
+      _ => const <t.UserBase>[],
+    };
+
+    return [
+      for (final chat in chats) ...?_peerFromChat(chat),
+      for (final user in users.whereType<t.User>())
+        if (_peerFromUser(user) != null) _peerFromUser(user)!,
+    ];
+  }
+
+  List<_ResolvedTelegramPeer>? _peerFromChat(t.ChatBase chat) {
+    if (chat is t.Channel && chat.accessHash != null) {
+      return [
+        _ResolvedTelegramPeer(
+          peer: t.InputPeerChannel(
+            channelId: chat.id,
+            accessHash: chat.accessHash!,
+          ),
+          id: chat.id.toString(),
+          title: chat.title,
+          username: chat.username,
+        ),
+      ];
+    }
+
+    if (chat is t.Chat) {
+      return [
+        _ResolvedTelegramPeer(
+          peer: t.InputPeerChat(chatId: chat.id),
+          id: chat.id.toString(),
+          title: chat.title,
+        ),
+      ];
+    }
+
+    return null;
+  }
+
+  _ResolvedTelegramPeer? _peerFromUser(t.User user) {
+    if (user.self) {
+      return const _ResolvedTelegramPeer(
+        peer: t.InputPeerSelf(),
+        id: "self",
+        title: "Избранное",
+      );
+    }
+    final accessHash = user.accessHash;
+    if (accessHash == null) return null;
+    final name = [
+      user.firstName,
+      user.lastName,
+    ].whereType<String>().where((part) => part.trim().isNotEmpty).join(" ");
+    return _ResolvedTelegramPeer(
+      peer: t.InputPeerUser(userId: user.id, accessHash: accessHash),
+      id: user.id.toString(),
+      title: name.isEmpty ? user.username ?? "Telegram user" : name,
+      username: user.username,
+    );
+  }
+
+  Iterable<t.Message> _messagesFrom(t.MessagesMessagesBase? base) {
+    final messages = switch (base) {
+      t.MessagesMessages(:final messages) => messages,
+      t.MessagesMessagesSlice(:final messages) => messages,
+      t.MessagesChannelMessages(:final messages) => messages,
+      _ => const <t.MessageBase>[],
+    };
+    return messages.whereType<t.Message>();
+  }
+
+  TelegramMtprotoTrack? _trackFromMessage(
+    t.Message message,
+    _ResolvedTelegramPeer peer,
+  ) {
+    final media = message.media;
+    if (media is! t.MessageMediaDocument) return null;
+    final documentBase = media.document;
+    if (documentBase is! t.Document) return null;
+
+    final audio = documentBase.attributes.whereType<t.DocumentAttributeAudio>()
+        .firstOrNull;
+    final fileName = documentBase.attributes
+        .whereType<t.DocumentAttributeFilename>()
+        .firstOrNull
+        ?.fileName;
+    final lowerFileName = fileName?.toLowerCase() ?? "";
+    final isAudio = audio != null ||
+        documentBase.mimeType.startsWith("audio/") ||
+        lowerFileName.endsWith(".mp3") ||
+        lowerFileName.endsWith(".m4a") ||
+        lowerFileName.endsWith(".flac") ||
+        lowerFileName.endsWith(".ogg") ||
+        lowerFileName.endsWith(".opus") ||
+        lowerFileName.endsWith(".wav");
+
+    if (!isAudio) return null;
+
+    final rawTitle = audio?.title ?? _basename(fileName) ?? message.message;
+    final parsed = _splitArtistTitle(rawTitle);
+    final title = parsed?.title ?? rawTitle.trim();
+    final artist = audio?.performer ?? parsed?.artist ?? "Telegram";
+    final thumbSize = documentBase.thumbs
+        ?.whereType<t.PhotoSize>()
+        .lastOrNull
+        ?.type;
+
+    return TelegramMtprotoTrack(
+      documentId: documentBase.id,
+      accessHash: documentBase.accessHash,
+      fileReferenceBase64: base64Encode(documentBase.fileReference),
+      dcId: documentBase.dcId,
+      size: documentBase.size,
+      title: title.isEmpty ? "Telegram audio" : title,
+      artist: artist.trim().isEmpty ? "Telegram" : artist,
+      album: peer.title,
+      chatId: peer.id,
+      chatTitle: peer.title,
+      messageId: message.id,
+      durationMs: (audio?.duration ?? 0) * 1000,
+      mimeType: documentBase.mimeType,
+      fileName: fileName,
+      thumbSize: thumbSize,
+      addedAt: message.date,
+    );
   }
 
   Future<bool> _handleMigration(
@@ -361,6 +747,74 @@ class TelegramMtprotoService {
   }
 }
 
+class TelegramMtprotoTrack {
+  final int documentId;
+  final int accessHash;
+  final String fileReferenceBase64;
+  final int dcId;
+  final int size;
+  final String title;
+  final String artist;
+  final String album;
+  final String chatId;
+  final String chatTitle;
+  final int messageId;
+  final int durationMs;
+  final String mimeType;
+  final String? fileName;
+  final String? thumbSize;
+  final DateTime addedAt;
+
+  const TelegramMtprotoTrack({
+    required this.documentId,
+    required this.accessHash,
+    required this.fileReferenceBase64,
+    required this.dcId,
+    required this.size,
+    required this.title,
+    required this.artist,
+    required this.album,
+    required this.chatId,
+    required this.chatTitle,
+    required this.messageId,
+    required this.durationMs,
+    required this.mimeType,
+    this.fileName,
+    this.thumbSize,
+    required this.addedAt,
+  });
+}
+
+class _ResolvedTelegramPeer {
+  final t.InputPeerBase peer;
+  final String id;
+  final String title;
+  final String? username;
+
+  const _ResolvedTelegramPeer({
+    required this.peer,
+    required this.id,
+    required this.title,
+    this.username,
+  });
+
+  String get key => "${peer.runtimeType}:$id";
+
+  Set<String> get candidates {
+    final cleanUsername = username?.toLowerCase();
+    final cleanTitle = title.toLowerCase();
+    final rawId = id.toLowerCase();
+    return {
+      rawId,
+      cleanTitle,
+      if (cleanUsername != null) cleanUsername,
+      if (cleanUsername != null) "@$cleanUsername",
+      if (int.tryParse(id) != null) "-$id",
+      if (int.tryParse(id) != null) "-100$id",
+    };
+  }
+}
+
 class TelegramSessionSendCodeResult {
   final String phoneNumber;
   final String phoneCodeHash;
@@ -409,4 +863,37 @@ class _TelegramTcpSocket extends tg.SocketAbstraction {
     socket.add(data);
     await socket.flush();
   }
+}
+
+String? _basename(String? fileName) {
+  if (fileName == null || fileName.trim().isEmpty) return null;
+  final cleaned = fileName.split("/").last;
+  final dot = cleaned.lastIndexOf(".");
+  return dot <= 0 ? cleaned : cleaned.substring(0, dot);
+}
+
+_ParsedTrackName? _splitArtistTitle(String? value) {
+  final text = value?.trim();
+  if (text == null || text.isEmpty) return null;
+
+  final match = RegExp(r"^(.+?)\s+(?:-|–|—|:)\s+(.+)$").firstMatch(text);
+  if (match == null) return null;
+
+  final artist = match.group(1)?.trim();
+  final title = match.group(2)?.trim();
+  if (artist == null || title == null || artist.isEmpty || title.isEmpty) {
+    return null;
+  }
+
+  return _ParsedTrackName(artist: artist, title: title);
+}
+
+class _ParsedTrackName {
+  final String artist;
+  final String title;
+
+  const _ParsedTrackName({
+    required this.artist,
+    required this.title,
+  });
 }

@@ -153,8 +153,12 @@ class TelegramAccountTile extends HookConsumerWidget {
       try {
         syncing.value = true;
         await saveSources(silent: true);
-        final result =
-            await ref.read(telegramMediaServiceProvider).syncBotUpdates();
+        final authState = await ref.read(telegramAuthProvider.future);
+        final result = authState.isUserSessionConnected
+            ? await ref
+                .read(telegramMediaServiceProvider)
+                .syncUserSessionHistory()
+            : await ref.read(telegramMediaServiceProvider).syncBotUpdates();
         if (!context.mounted) return;
         _showTelegramToast(
           context,
@@ -346,11 +350,11 @@ class TelegramAccountTile extends HookConsumerWidget {
                 color: context.theme.colorScheme.mutedForeground,
               ),
             ),
-          if (value.isBotConnected) ...[
+          if (value.isBotConnected || value.isUserSessionConnected) ...[
             TextField(
               controller: sourcesController,
               placeholder: const Text(
-                "Источники: @channel, -1001234567890, название группы",
+                "Источники: @channel, -1001234567890, me, название группы",
               ),
             ),
             Row(
@@ -376,17 +380,20 @@ class TelegramAccountTile extends HookConsumerWidget {
               ],
             ),
             Text(
-              "Если поле источников пустое, берутся все каналы и группы, где бот видит новые аудио.",
+              value.isUserSessionConnected
+                  ? "Telegram-сессия читает историю указанных каналов/чатов. Если поле пустое, ETGmusic возьмет последние диалоги из аккаунта."
+                  : "Если поле источников пустое, берутся все каналы и группы, где бот видит новые аудио.",
               style: context.theme.typography.xSmall.copyWith(
                 color: context.theme.colorScheme.mutedForeground,
               ),
             ),
-            Text(
-              "Bot API не выгружает старую историю канала. Для старых треков перешли их заново после добавления бота или используй будущий MTProto-вход через пользовательскую сессию.",
-              style: context.theme.typography.xSmall.copyWith(
-                color: context.theme.colorScheme.mutedForeground,
+            if (value.isBotConnected)
+              Text(
+                "Bot API не выгружает старую историю канала. Для старых треков перешли их заново после добавления бота или войди через Telegram-сессию.",
+                style: context.theme.typography.xSmall.copyWith(
+                  color: context.theme.colorScheme.mutedForeground,
+                ),
               ),
-            ),
           ],
           if (auth.hasError)
             Text(
