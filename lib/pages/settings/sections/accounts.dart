@@ -515,6 +515,7 @@ class _TelegramSessionDialog extends HookConsumerWidget {
           if (step.value == _TelegramSessionStep.password)
             TextField(
               controller: passwordController,
+              keyboardType: TextInputType.visiblePassword,
               obscureText: !showPassword.value,
               placeholder: const Text("Пароль 2FA"),
               features: [
