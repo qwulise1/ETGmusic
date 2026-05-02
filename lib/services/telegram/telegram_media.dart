@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -10,6 +11,7 @@ import 'package:etgmusic/provider/telegram/telegram_auth.dart';
 import 'package:etgmusic/services/dio/dio.dart';
 import 'package:etgmusic/services/kv_store/kv_store.dart';
 import 'package:etgmusic/services/telegram/telegram_mtproto.dart';
+import 'package:etgmusic/services/telegram/telegram_sync_notifications.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -38,6 +40,10 @@ final telegramTrackCacheStatusProvider =
   },
 );
 
+final telegramSyncProgressProvider = StateProvider<TelegramSyncProgress>(
+  (ref) => const TelegramSyncProgress.idle(),
+);
+
 class TelegramTrackCacheStatus {
   final bool cached;
   final String? error;
@@ -50,10 +56,70 @@ class TelegramTrackCacheStatus {
   bool get failed => !cached;
 }
 
+class TelegramSyncProgress {
+  final bool running;
+  final bool completed;
+  final String stage;
+  final String message;
+  final int progress;
+  final int max;
+  final int scanned;
+  final int found;
+  final int cached;
+  final int failed;
+  final String? error;
+
+  const TelegramSyncProgress({
+    required this.running,
+    required this.completed,
+    required this.stage,
+    required this.message,
+    this.progress = 0,
+    this.max = 0,
+    this.scanned = 0,
+    this.found = 0,
+    this.cached = 0,
+    this.failed = 0,
+    this.error,
+  });
+
+  const TelegramSyncProgress.idle()
+      : running = false,
+        completed = false,
+        stage = "Ожидание",
+        message = "Синхронизация не запущена",
+        progress = 0,
+        max = 0,
+        scanned = 0,
+        found = 0,
+        cached = 0,
+        failed = 0,
+        error = null;
+
+  bool get indeterminate => max <= 0;
+  double? get value => max <= 0 ? null : progress.clamp(0, max) / max;
+
+  String get notificationText {
+    final counters = [
+      if (scanned > 0) "просмотрено $scanned",
+      if (found > 0) "треков $found",
+      if (cached > 0) "скачано $cached",
+      if (failed > 0) "ошибок $failed",
+    ].join(" · ");
+    if (counters.isEmpty) return message;
+    return "$message · $counters";
+  }
+}
+
+typedef TelegramSyncProgressHandler = void Function(
+  TelegramSyncProgress progress,
+);
+
 class TelegramMediaService {
   static const _tracksKey = "telegram_media_tracks";
   static const _sourcesKey = "telegram_media_sources";
   static const _updateOffsetKey = "telegram_media_update_offset";
+  static bool _syncRunning = false;
   final TelegramMtprotoService _mtproto = TelegramMtprotoService();
 
   final Ref ref;
@@ -80,6 +146,79 @@ class TelegramMediaService {
         .where((value) => value.isNotEmpty)
         .toSet()
         .toList();
+  }
+
+  Future<void> startBackgroundSync() async {
+    if (_syncRunning) {
+      throw const TelegramMediaException("Синхронизация уже идет");
+    }
+
+    final auth = await ref.read(telegramAuthProvider.future);
+    if (!auth.isConnected) {
+      throw const TelegramMediaException("Сначала подключи Telegram");
+    }
+
+    _syncRunning = true;
+    await TelegramSyncNotifications.requestPermission().catchError((_) {});
+    _publishSyncProgress(
+      const TelegramSyncProgress(
+        running: true,
+        completed: false,
+        stage: "Запуск",
+        message: "Готовлю Telegram-синхронизацию",
+      ),
+    );
+
+    unawaited(_runBackgroundSync(auth));
+  }
+
+  Future<void> _runBackgroundSync(TelegramAuthState auth) async {
+    try {
+      final result = auth.isUserSessionConnected
+          ? await syncUserSessionHistory(onProgress: _publishSyncProgress)
+          : await syncBotUpdates(onProgress: _publishSyncProgress);
+      _publishSyncProgress(
+        TelegramSyncProgress(
+          running: false,
+          completed: true,
+          stage: "Готово",
+          message:
+              "Синхронизация завершена: +${result.added}, всего ${result.total}",
+          progress: result.cached + result.failed,
+          max: result.cached + result.failed,
+          scanned: result.scanned,
+          found: result.total,
+          cached: result.cached,
+          failed: result.failed,
+        ),
+      );
+    } catch (error) {
+      _publishSyncProgress(
+        TelegramSyncProgress(
+          running: false,
+          completed: false,
+          stage: "Ошибка",
+          message: "Синхронизация остановлена",
+          error: error.toString(),
+        ),
+      );
+    } finally {
+      _syncRunning = false;
+    }
+  }
+
+  void _publishSyncProgress(TelegramSyncProgress progress) {
+    ref.read(telegramSyncProgressProvider.notifier).state = progress;
+    unawaited(
+      TelegramSyncNotifications.show(
+        title: "ETGmusic · Telegram",
+        text: progress.error ?? progress.notificationText,
+        progress: progress.progress,
+        max: progress.max,
+        indeterminate: progress.indeterminate,
+        done: !progress.running,
+      ).catchError((_) {}),
+    );
   }
 
   Future<List<SpotubeFullTrackObject>> loadTracks() async {
@@ -149,7 +288,9 @@ class TelegramMediaService {
 	    ref.read(telegramMediaRevisionProvider.notifier).state++;
 	  }
 
-  Future<TelegramSyncResult> syncBotUpdates() async {
+  Future<TelegramSyncResult> syncBotUpdates({
+    TelegramSyncProgressHandler? onProgress,
+  }) async {
     final token = await ref.read(telegramAuthProvider.notifier).readBotToken();
     if (token == null || token.trim().isEmpty) {
       throw const TelegramMediaException("Сначала подключи Telegram bot token");
@@ -184,8 +325,10 @@ class TelegramMediaService {
 
     var maxUpdateId = KVStoreService.sharedPreferences.getInt(_updateOffsetKey);
     var added = 0;
+    var scanned = 0;
 
     for (final rawUpdate in body["result"] as List) {
+      scanned++;
       if (rawUpdate is! Map) continue;
       final updateId = _asInt(rawUpdate["update_id"]);
       if (updateId != null && (maxUpdateId == null || updateId >= maxUpdateId)) {
@@ -233,6 +376,26 @@ class TelegramMediaService {
 	      if (previous == null) added++;
 	      recordsById[record.id] =
 	          previous == null ? record : previous.mergeFresh(record);
+	      if (added % 10 == 0 || added == 1) {
+	        final records = recordsById.values.toList()
+	          ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
+	        await _writeStoredTracks(records);
+	        ref.invalidate(telegramMediaTracksProvider);
+	        ref.read(telegramMediaRevisionProvider.notifier).state++;
+	      }
+
+	      onProgress?.call(
+	        TelegramSyncProgress(
+	          running: true,
+	          completed: false,
+	          stage: "Синхронизация",
+	          message: "Читаю обновления Telegram Bot API",
+	          progress: scanned,
+	          max: (body["result"] as List).length,
+	          scanned: scanned,
+	          found: recordsById.length,
+	        ),
+	      );
     }
 
     if (maxUpdateId != null) {
@@ -256,7 +419,9 @@ class TelegramMediaService {
 	    );
 	  }
 
-  Future<TelegramSyncResult> syncUserSessionHistory() async {
+  Future<TelegramSyncResult> syncUserSessionHistory({
+    TelegramSyncProgressHandler? onProgress,
+  }) async {
     final auth = await ref.read(telegramAuthProvider.future);
     if (!auth.isUserSessionConnected) {
       throw const TelegramMediaException("Сначала подключи Telegram-сессию");
@@ -266,40 +431,115 @@ class TelegramMediaService {
     final recordsById = {
       for (final track in await _readStoredTracks()) track.id: track,
     };
-	    final tracks = await _mtproto.fetchAudioFromSources(sourceFilters);
-	    var added = 0;
-	    var cached = 0;
-	    var failed = 0;
+    onProgress?.call(
+      const TelegramSyncProgress(
+        running: true,
+        completed: false,
+        stage: "Чтение",
+        message: "Читаю историю Telegram",
+      ),
+    );
+    final tracks = await _mtproto.fetchAudioFromSources(
+      sourceFilters,
+      onProgress: (source, scanned, found) {
+        onProgress?.call(
+          TelegramSyncProgress(
+            running: true,
+            completed: false,
+            stage: "Чтение",
+            message: "Читаю $source",
+            scanned: scanned,
+            found: found,
+          ),
+        );
+      },
+    );
+    var added = 0;
+    var cached = 0;
+    var failed = 0;
+    var indexed = 0;
 
     for (final track in tracks) {
       final id = "telegram:mtproto:${track.documentId}";
       final previous = recordsById[id];
       if (previous == null) added++;
 
-      final coverUrl = await _cacheMtprotoCover(track).catchError(
-        (_) => previous?.coverUrl,
+      final record = _recordFromMtprotoTrack(
+        track,
+        id: id,
+        coverUrl: previous?.coverUrl,
       );
 
-	      final record = _recordFromMtprotoTrack(
-	        track,
-	        id: id,
-	        coverUrl: coverUrl ?? previous?.coverUrl,
-	      );
+      final merged = previous == null ? record : previous.mergeFresh(record);
+      recordsById[id] = merged;
+      indexed++;
 
-	      final merged = previous == null ? record : previous.mergeFresh(record);
-	      final prepared = await _prepareMtprotoAudioCache(merged);
-	      if (prepared.cacheReady == true) cached++;
-	      if (prepared.cacheReady == false) failed++;
-	      recordsById[id] = prepared;
-	    }
+      if (indexed % 5 == 0 || indexed == tracks.length) {
+        final records = recordsById.values.toList()
+          ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
+        await _writeStoredTracks(records);
+        ref.invalidate(telegramMediaTracksProvider);
+        ref.read(telegramMediaRevisionProvider.notifier).state++;
+      }
+
+      onProgress?.call(
+        TelegramSyncProgress(
+          running: true,
+          completed: false,
+          stage: "Индексирование",
+          message: "Добавляю треки в библиотеку",
+          progress: indexed,
+          max: tracks.length,
+          scanned: indexed,
+          found: recordsById.length,
+        ),
+      );
+    }
 
     final records = recordsById.values.toList()
       ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
     await _writeStoredTracks(records);
     ref.read(telegramMediaRevisionProvider.notifier).state++;
 
+    final mtprotoRecords = records
+        .where((record) => record.fileUrl.startsWith("telegram-mtproto://"))
+        .toList();
+    var cacheIndex = 0;
+
+    for (final record in mtprotoRecords) {
+      cacheIndex++;
+      final withCover = record.coverUrl == null
+          ? await _refreshCoverFromRecord(record).catchError((_) => record)
+          : record;
+      final prepared = await _prepareMtprotoAudioCache(withCover);
+      if (prepared.cacheReady == true) cached++;
+      if (prepared.cacheReady == false) failed++;
+      recordsById[prepared.id] = prepared;
+
+      final updatedRecords = recordsById.values.toList()
+        ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
+      await _writeStoredTracks(updatedRecords);
+      ref.invalidate(telegramMediaTracksProvider);
+      ref.read(telegramMediaRevisionProvider.notifier).state++;
+
+      onProgress?.call(
+        TelegramSyncProgress(
+          running: true,
+          completed: false,
+          stage: "Скачивание",
+          message: "Кэширую Telegram-аудио",
+          progress: cacheIndex,
+          max: mtprotoRecords.length,
+          scanned: tracks.length,
+          found: recordsById.length,
+          cached: cached,
+          failed: failed,
+        ),
+      );
+    }
+
     return TelegramSyncResult(
-	      total: records.length,
+	      total: recordsById.length,
 	      added: added,
 	      scanned: tracks.length,
 	      cached: cached,
@@ -470,6 +710,30 @@ class TelegramMediaService {
 	    await _replaceStoredTrack(merged);
 	    return merged;
 	  }
+
+  Future<TelegramTrackRecord> _refreshCoverFromRecord(
+    TelegramTrackRecord record,
+  ) async {
+    if (record.coverUrl != null) return record;
+    if (record.chatId.trim().isEmpty || record.messageId <= 0) return record;
+
+    final freshTrack = await _mtproto.refreshTrackByMessage(
+      chatId: record.chatId,
+      messageId: record.messageId,
+    );
+    if (freshTrack == null) return record;
+
+    final coverUrl = await _cacheMtprotoCover(freshTrack);
+    if (coverUrl == null) return record;
+
+    return record.mergeFresh(
+      _recordFromMtprotoTrack(
+        freshTrack,
+        id: record.id,
+        coverUrl: coverUrl,
+      ),
+    );
+  }
 
 	  Future<void> _replaceStoredTrack(TelegramTrackRecord record) async {
 	    final records = await _readStoredTracks();

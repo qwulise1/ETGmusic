@@ -46,8 +46,8 @@ class TelegramAccountTile extends HookConsumerWidget {
     final tokenController = useTextEditingController();
     final sourcesController = useTextEditingController();
     final showToken = useState(false);
-    final syncing = useState(false);
     final filtersText = filters.asData?.value.join("\n") ?? "";
+    final syncProgress = ref.watch(telegramSyncProgressProvider);
 
     useEffect(() {
       if (filters.asData != null && sourcesController.text != filtersText) {
@@ -89,27 +89,16 @@ class TelegramAccountTile extends HookConsumerWidget {
 
     Future<void> syncTelegram() async {
       try {
-        syncing.value = true;
         await saveSources(silent: true);
-        final authState = await ref.read(telegramAuthProvider.future);
-        final result = authState.isUserSessionConnected
-            ? await ref
-                .read(telegramMediaServiceProvider)
-                .syncUserSessionHistory()
-            : await ref.read(telegramMediaServiceProvider).syncBotUpdates();
+        await ref.read(telegramMediaServiceProvider).startBackgroundSync();
         if (!context.mounted) return;
-        final cacheText = result.cached + result.failed > 0
-            ? " · скачано ${result.cached}, ошибок ${result.failed}"
-            : "";
         _showTelegramToast(
           context,
-          "Синхронизация: +${result.added}, всего ${result.total}$cacheText",
+          "Синхронизация запущена в фоне. Статус будет в уведомлении.",
         );
       } catch (e) {
         if (!context.mounted) return;
         _showTelegramToast(context, e.toString(), error: true);
-      } finally {
-        syncing.value = false;
       }
     }
 
@@ -252,18 +241,45 @@ class TelegramAccountTile extends HookConsumerWidget {
                   child: const Text("Сохранить источники"),
                 ),
                 Button.primary(
-                  enabled: !syncing.value,
+                  enabled: !syncProgress.running,
                   onPressed: syncTelegram,
-                  leading: syncing.value
+                  leading: syncProgress.running
                       ? const SizedBox.square(
                           dimension: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(SpotubeIcons.refresh),
-                  child: const Text("Синхронизировать"),
+                  child: Text(
+                    syncProgress.running
+                        ? "Синхронизация идет"
+                        : "Синхронизировать",
+                  ),
                 ),
               ],
             ),
+            if (syncProgress.running ||
+                syncProgress.completed ||
+                syncProgress.error != null)
+              Card(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  spacing: 8,
+                  children: [
+                    Text(syncProgress.stage).semiBold(),
+                    Text(
+                      syncProgress.error ?? syncProgress.notificationText,
+                      style: context.theme.typography.xSmall.copyWith(
+                        color: syncProgress.error == null
+                            ? context.theme.colorScheme.mutedForeground
+                            : context.theme.colorScheme.destructive,
+                      ),
+                    ),
+                    if (syncProgress.running)
+                      LinearProgressIndicator(value: syncProgress.value),
+                  ],
+                ),
+              ),
             Text(
               value.isUserSessionConnected
                   ? "Telegram-сессия читает историю указанных каналов/чатов. Если поле пустое, ETGmusic возьмет последние диалоги из аккаунта."

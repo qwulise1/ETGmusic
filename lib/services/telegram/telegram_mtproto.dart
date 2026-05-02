@@ -190,6 +190,8 @@ class TelegramMtprotoService {
 	    List<String> sourceFilters, {
 	    int pageSize = 100,
 	    int maxMessagesPerSource = 10000,
+	    void Function(String sourceTitle, int scannedMessages, int foundTracks)?
+	        onProgress,
   }) async {
     final apiId = _readApiId();
     final client = await _connect(apiId: apiId);
@@ -243,6 +245,7 @@ class TelegramMtprotoService {
           final track = _trackFromMessage(message, peer);
           if (track != null) tracks.add(track);
         }
+        onProgress?.call(peer.title, scannedMessages, tracks.length);
 
         final nextOffsetId = messages
             .map((message) => message.id)
