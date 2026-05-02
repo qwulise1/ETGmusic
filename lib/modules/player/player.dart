@@ -186,8 +186,9 @@ class PlayerView extends HookConsumerWidget {
                   children: [
                     Center(
                       child: Container(
-                        constraints: BoxConstraints.square(
-                          dimension: albumArtSize,
+                        constraints: BoxConstraints.tightFor(
+                          width: albumArtSize,
+                          height: albumArtSize,
                         ),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
