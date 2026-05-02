@@ -77,72 +77,80 @@ class TrackDetailsDialog extends HookConsumerWidget {
           ),
         ],
       ),
-      content: SizedBox(
-        width: mediaQuery.mdAndUp ? double.infinity : 700,
-        child: Table(
-          columnWidths: const {
-            0: FixedTableSize(95),
-            1: FixedTableSize(10),
-            2: FlexTableSize(),
-          },
-          theme: const TableTheme(
-            backgroundColor: Colors.transparent,
-            cellTheme: TableCellTheme(
-              backgroundColor: WidgetStatePropertyAll(Colors.transparent),
-            ),
-          ),
-          rowHeights: const {0: FixedTableSize(40)},
-          rows: [
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: mediaQuery.mdAndUp ? 560 : 340,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 8,
+          children: [
             for (final entry in detailsMap.entries)
-              TableRow(
-                cells: [
-                  TableCell(
-                    child: Text(
-                      entry.key,
-                      style: theme.typography.bold,
-                    ),
+              _TrackDetailsRow(label: entry.key, value: entry.value),
+            if (ytTracksDetailsMap.isNotEmpty) ...[
+              const Gap(4),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Источник",
+                  style: theme.typography.small.copyWith(
+                    color: theme.colorScheme.mutedForeground,
+                    fontWeight: FontWeight.w700,
                   ),
-                  const TableCell(
-                    child: Text(":"),
-                  ),
-                  TableCell(
-                    child: entry.value is Widget
-                        ? entry.value as Widget
-                        : (entry.value is String)
-                            ? Text(
-                                entry.value as String,
-                                style: theme.typography.normal,
-                              )
-                            : const Text(""),
-                  ),
-                ],
+                ),
               ),
-            for (final entry in ytTracksDetailsMap.entries)
-              TableRow(
-                cells: [
-                  TableCell(
-                    child: Text(
-                      entry.key,
-                      style: theme.typography.bold,
-                    ),
-                  ),
-                  const TableCell(
-                    child: Text(":"),
-                  ),
-                  TableCell(
-                    child: entry.value is Widget
-                        ? entry.value as Widget
-                        : Text(
-                            entry.value,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.typography.normal,
-                          ),
-                  ),
-                ],
-              ),
+              for (final entry in ytTracksDetailsMap.entries)
+                _TrackDetailsRow(label: entry.key, value: entry.value),
+            ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _TrackDetailsRow extends StatelessWidget {
+  final String label;
+  final Object? value;
+
+  const _TrackDetailsRow({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final valueWidget = value is Widget
+        ? value as Widget
+        : Text(
+            value?.toString() ?? "",
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.typography.normal,
+          );
+
+    return OutlinedContainer(
+      borderRadius: BorderRadius.circular(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: 10,
+        children: [
+          SizedBox(
+            width: 92,
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.typography.small.copyWith(
+                color: theme.colorScheme.mutedForeground,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(child: valueWidget),
+        ],
       ),
     );
   }

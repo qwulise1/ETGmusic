@@ -118,6 +118,7 @@ typedef TelegramSyncProgressHandler = void Function(
 class TelegramMediaService {
   static const _tracksKey = "telegram_media_tracks";
   static const _sourcesKey = "telegram_media_sources";
+  static const _albumOverridesKey = "telegram_album_overrides";
   static const _updateOffsetKey = "telegram_media_update_offset";
   static bool _syncRunning = false;
   final TelegramMtprotoService _mtproto = TelegramMtprotoService();
@@ -222,16 +223,24 @@ class TelegramMediaService {
   }
 
   Future<List<SpotubeFullTrackObject>> loadTracks() async {
+    final albumOverrides = _readAlbumOverrides();
     return (await _readStoredTracks())
-        .map((track) => track.toMetadata())
+        .map((track) => _applyAlbumOverride(
+              track.toMetadata(),
+              albumOverrides,
+            ))
         .toList();
   }
 
   Future<SpotubeFullTrackObject?> findTrack(String id) async {
     final records = await _readStoredTracks();
+    final albumOverrides = _readAlbumOverrides();
     return records
         .where((track) => track.id == id)
-        .map((track) => track.toMetadata())
+        .map((track) => _applyAlbumOverride(
+              track.toMetadata(),
+              albumOverrides,
+            ))
         .firstOrNull;
   }
 
@@ -285,9 +294,72 @@ class TelegramMediaService {
     await (database.delete(database.lyricsTable)
           ..where((table) => table.trackId.equals(id)))
         .go();
+    await (database.delete(database.sourceMatchTable)
+          ..where((table) => table.trackId.equals(id)))
+        .go();
     ref.invalidate(telegramMediaTracksProvider);
     ref.read(telegramMediaRevisionProvider.notifier).state++;
-    return updatedRecord.toMetadata();
+    return _applyAlbumOverride(
+      updatedRecord.toMetadata(),
+      _readAlbumOverrides(),
+    );
+  }
+
+  SpotubeSimpleAlbumObject applyAlbumOverride(
+    SpotubeSimpleAlbumObject album,
+  ) {
+    final override = _readAlbumOverrides()[album.id];
+    if (override == null) return album;
+    return _applyAlbumOverrideToAlbum(album, override);
+  }
+
+  Future<SpotubeSimpleAlbumObject> updateAlbumMetadata(
+    SpotubeSimpleAlbumObject album, {
+    required String name,
+    String? coverUrl,
+  }) async {
+    if (!album.id.startsWith("telegram:")) {
+      throw const TelegramMediaException(
+        "Редактирование доступно только для Telegram-альбомов",
+      );
+    }
+
+    final overrides = _readAlbumOverrides();
+    final cleanName = name.trim();
+    final cleanCover = coverUrl?.trim() ?? "";
+
+    if (cleanName.isEmpty && cleanCover.isEmpty) {
+      overrides.remove(album.id);
+    } else {
+      overrides[album.id] = TelegramAlbumOverride(
+        name: cleanName.isEmpty ? null : cleanName,
+        coverUrl: cleanCover.isEmpty ? null : cleanCover,
+      );
+    }
+
+    await KVStoreService.sharedPreferences.setString(
+      _albumOverridesKey,
+      jsonEncode(
+        overrides.map(
+          (key, value) => MapEntry(key, value.toJson()),
+        ),
+      ),
+    );
+
+    final database = ref.read(databaseProvider);
+    final affectedTrackIds = (await _readStoredTracks())
+        .where((track) => track.toMetadata().album.id == album.id)
+        .map((track) => track.id)
+        .toList();
+    for (final trackId in affectedTrackIds) {
+      await (database.delete(database.lyricsTable)
+            ..where((table) => table.trackId.equals(trackId)))
+          .go();
+    }
+
+    ref.invalidate(telegramMediaTracksProvider);
+    ref.read(telegramMediaRevisionProvider.notifier).state++;
+    return applyAlbumOverride(album);
   }
 
   Future<TelegramSyncResult> syncBotUpdates({
@@ -818,6 +890,55 @@ class TelegramMediaService {
     return dir;
   }
 
+  Map<String, TelegramAlbumOverride> _readAlbumOverrides() {
+    final raw = KVStoreService.sharedPreferences.getString(_albumOverridesKey);
+    if (raw == null || raw.isEmpty) return {};
+
+    final parsed = jsonDecode(raw);
+    if (parsed is! Map) return {};
+
+    return parsed.map(
+      (key, value) {
+        if (value is! Map) {
+          return MapEntry(key.toString(), const TelegramAlbumOverride());
+        }
+        return MapEntry(
+          key.toString(),
+          TelegramAlbumOverride.fromJson(value.cast<String, dynamic>()),
+        );
+      },
+    )..removeWhere((_, value) => value.isEmpty);
+  }
+
+  SpotubeFullTrackObject _applyAlbumOverride(
+    SpotubeFullTrackObject track,
+    Map<String, TelegramAlbumOverride> overrides,
+  ) {
+    final override = overrides[track.album.id];
+    if (override == null) return track;
+    return track.copyWith(
+      album: _applyAlbumOverrideToAlbum(track.album, override),
+    );
+  }
+
+  SpotubeSimpleAlbumObject _applyAlbumOverrideToAlbum(
+    SpotubeSimpleAlbumObject album,
+    TelegramAlbumOverride override,
+  ) {
+    return album.copyWith(
+      name: override.name ?? album.name,
+      images: override.coverUrl == null
+          ? album.images
+          : [
+              SpotubeImageObject(
+                url: override.coverUrl!,
+                width: 600,
+                height: 600,
+              ),
+            ],
+    );
+  }
+
   Future<List<TelegramTrackRecord>> _readStoredTracks() async {
     final raw = KVStoreService.sharedPreferences.getString(_tracksKey);
     if (raw == null || raw.isEmpty) return [];
@@ -1220,6 +1341,34 @@ class TelegramMediaException implements Exception {
 
   @override
   String toString() => message;
+}
+
+class TelegramAlbumOverride {
+  final String? name;
+  final String? coverUrl;
+
+  const TelegramAlbumOverride({
+    this.name,
+    this.coverUrl,
+  });
+
+  bool get isEmpty =>
+      (name == null || name!.trim().isEmpty) &&
+      (coverUrl == null || coverUrl!.trim().isEmpty);
+
+  factory TelegramAlbumOverride.fromJson(Map<String, dynamic> json) {
+    return TelegramAlbumOverride(
+      name: _string(json["name"]),
+      coverUrl: _string(json["cover_url"]),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "name": name,
+      "cover_url": coverUrl,
+    };
+  }
 }
 
 class _TelegramMedia {

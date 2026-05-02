@@ -51,6 +51,7 @@ class TrackPresentationOptions {
   final bool isLiked;
   final String? shareUrl;
   final Object? error;
+  final List<Widget> actions;
 
   // events
   final FutureOr<bool?> Function()? onHeart; // if null heart button will hidden
@@ -69,6 +70,7 @@ class TrackPresentationOptions {
     this.isLiked = false,
     this.onHeart,
     this.error,
+    this.actions = const [],
   }) : assert(collection is SpotubeSimpleAlbumObject ||
             collection is SpotubeSimplePlaylistObject);
 
@@ -93,7 +95,8 @@ class TrackPresentationOptions {
         other.isLiked == isLiked &&
         other.shareUrl == shareUrl &&
         other.onHeart == onHeart &&
-        other.error == error;
+        other.error == error &&
+        other.actions == actions;
   }
 
   @override
@@ -109,5 +112,6 @@ class TrackPresentationOptions {
       isLiked.hashCode ^
       shareUrl.hashCode ^
       onHeart.hashCode ^
-      error.hashCode;
+      error.hashCode ^
+      actions.hashCode;
 }

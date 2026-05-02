@@ -100,67 +100,7 @@ class PlayerView extends HookConsumerWidget {
         padding: EdgeInsets.zero,
         child: Scaffold(
           backgroundColor: Colors.transparent,
-          headers: [
-            SafeArea(
-              bottom: false,
-              child: TitleBar(
-                surfaceOpacity: 0,
-                surfaceBlur: 0,
-                title: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      "ИЗ ПЛЕЙЛИСТА",
-                      style: theme.typography.xSmall.copyWith(
-                        color: theme.colorScheme.mutedForeground,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                    Text(
-                      currentActiveTrack?.album.name ?? "ETGmusic",
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.typography.xSmall.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-                leading: [
-                  IconButton.ghost(
-                    size: const ButtonSize(1.2),
-                    icon: const Icon(SpotubeIcons.angleDown),
-                    onPressed: panelController.close,
-                  )
-                ],
-                trailing: [
-                  if (!isLocalTrack)
-                    Tooltip(
-                      tooltip: TooltipContainer(
-                        child: Text(context.l10n.details),
-                      ).call,
-                      child: IconButton.ghost(
-                        size: const ButtonSize(1.2),
-                        icon: const Icon(SpotubeIcons.moreVertical),
-                        onPressed: currentActiveTrackSource == null
-                            ? null
-                            : () {
-                                showDialog(
-                                    context: context,
-                                    builder: (context) {
-                                      return TrackDetailsDialog(
-                                        track: currentActiveTrack
-                                            as SpotubeFullTrackObject,
-                                      );
-                                    });
-                              },
-                      ),
-                    )
-                ],
-              ),
-            ),
-          ],
+          headers: const [],
           child: DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -172,18 +112,81 @@ class PlayerView extends HookConsumerWidget {
                 ],
               ),
             ),
-            child: SingleChildScrollView(
-              controller: scrollController,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  18,
-                  mediaQuery.smAndDown ? 54 : 28,
-                  18,
-                  30,
+            child: Column(
+              children: [
+                SafeArea(
+                  bottom: false,
+                  child: TitleBar(
+                    surfaceOpacity: 0,
+                    surfaceBlur: 0,
+                    title: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          "ИЗ ПЛЕЙЛИСТА",
+                          style: theme.typography.xSmall.copyWith(
+                            color: theme.colorScheme.mutedForeground,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        Text(
+                          currentActiveTrack?.album.name ?? "ETGmusic",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.typography.xSmall.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    leading: [
+                      IconButton.ghost(
+                        size: const ButtonSize(1.2),
+                        icon: const Icon(SpotubeIcons.angleDown),
+                        onPressed: panelController.close,
+                      )
+                    ],
+                    trailing: [
+                      if (!isLocalTrack)
+                        Tooltip(
+                          tooltip: TooltipContainer(
+                            child: Text(context.l10n.details),
+                          ).call,
+                          child: IconButton.ghost(
+                            size: const ButtonSize(1.2),
+                            icon: const Icon(SpotubeIcons.moreVertical),
+                            onPressed: currentActiveTrackSource == null
+                                ? null
+                                : () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) {
+                                        return TrackDetailsDialog(
+                                          track: currentActiveTrack
+                                              as SpotubeFullTrackObject,
+                                        );
+                                      },
+                                    );
+                                  },
+                          ),
+                        )
+                    ],
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        18,
+                        mediaQuery.smAndDown ? 28 : 24,
+                        18,
+                        30,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
                     Center(
                       child: Container(
                         constraints: BoxConstraints.tightFor(
@@ -265,23 +268,6 @@ class PlayerView extends HookConsumerWidget {
                                 ),
                             ],
                           ),
-                        ),
-                        IconButton.ghost(
-                          size: const ButtonSize(1.35),
-                          icon: const Icon(SpotubeIcons.close),
-                          enabled: currentActiveTrack != null,
-                          onPressed: () {
-                            panelController.close();
-                          },
-                        ),
-                        IconButton.outline(
-                          size: const ButtonSize(1.35),
-                          shape: ButtonShape.circle,
-                          icon: const Icon(SpotubeIcons.add),
-                          enabled: currentActiveTrack != null,
-                          onPressed: () {
-                            context.pushRoute(const PlayerQueueRoute());
-                          },
                         ),
                       ],
                     ),
@@ -393,9 +379,12 @@ class PlayerView extends HookConsumerWidget {
                         child: Text(qualityLabel),
                       ),
                     ),
-                  ],
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ),

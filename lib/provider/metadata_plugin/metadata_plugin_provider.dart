@@ -235,6 +235,34 @@ class MetadataPluginNotifier extends AsyncNotifier<MetadataPluginState> {
         await setDefaultAudioSourcePlugin(audioPlugin);
       }
     }
+
+    await _activateBundledPluginDefaults();
+  }
+
+  Future<void> _activateBundledPluginDefaults() async {
+    final latestPluginState =
+        await toStatePlugins(await database.pluginsTable.select().get());
+    final spotify = latestPluginState.plugins.firstWhereOrNull(
+      (plugin) =>
+          plugin.repository ==
+              "https://github.com/sonic-liberation/spotube-plugin-spotify" ||
+          plugin.slug == "spotify",
+    );
+    final youtubeAudio = latestPluginState.plugins.firstWhereOrNull(
+      (plugin) =>
+          plugin.repository ==
+              "https://github.com/KRTirtho/spotube-plugin-youtube-audio" ||
+          plugin.slug == "youtube-audio",
+    );
+
+    if (spotify != null &&
+        latestPluginState.defaultMetadataPluginConfig != spotify) {
+      await setDefaultMetadataPlugin(spotify);
+    }
+    if (youtubeAudio != null &&
+        latestPluginState.defaultAudioSourcePluginConfig != youtubeAudio) {
+      await setDefaultAudioSourcePlugin(youtubeAudio);
+    }
   }
 
   Uri _getGithubReleasesUrl(String repoUrl) {

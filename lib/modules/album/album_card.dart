@@ -15,6 +15,7 @@ import 'package:etgmusic/provider/history/history.dart';
 import 'package:etgmusic/provider/audio_player/audio_player.dart';
 import 'package:etgmusic/provider/metadata_plugin/tracks/album.dart';
 import 'package:etgmusic/services/audio_player/audio_player.dart';
+import 'package:etgmusic/services/telegram/telegram_media.dart';
 
 extension FormattedAlbumType on SpotubeAlbumType {
   String get formatted => name.replaceFirst(name[0], name[0].toUpperCase());
@@ -35,6 +36,9 @@ class AlbumCard extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, ref) {
+    ref.watch(telegramMediaRevisionProvider);
+    final displayAlbum =
+        ref.read(telegramMediaServiceProvider).applyAlbumOverride(album);
     final playlist = ref.watch(audioPlayerProvider);
     final playing =
         useStream(audioPlayer.playingStream).data ?? audioPlayer.isPlaying;
@@ -43,33 +47,34 @@ class AlbumCard extends HookConsumerWidget {
     final isFetchingActiveTrack = ref.watch(queryingTrackInfoProvider);
 
     final isPlaylistPlaying = useMemoized<bool>(
-      () => playlist.containsCollection(album.id),
-      [playlist, album.id],
+      () => playlist.containsCollection(displayAlbum.id),
+      [playlist, displayAlbum.id],
     );
 
     final updating = useState(false);
 
     final fetchAllTrack = useCallback(() async {
-      await ref.read(metadataPluginAlbumTracksProvider(album.id).future);
+      await ref.read(metadataPluginAlbumTracksProvider(displayAlbum.id).future);
       return ref
-          .read(metadataPluginAlbumTracksProvider(album.id).notifier)
+          .read(metadataPluginAlbumTracksProvider(displayAlbum.id).notifier)
           .fetchAll();
-    }, [album.id, ref]);
+    }, [displayAlbum.id, ref]);
 
     final imageUrl = useMemoized(
-      () => album.images.from200PxTo300PxOrSmallestImage(
+      () => displayAlbum.images.from200PxTo300PxOrSmallestImage(
         ImagePlaceholder.collection,
       ),
-      [album.images],
+      [displayAlbum.images],
     );
 
     final isLoading =
         (isPlaylistPlaying && isFetchingActiveTrack) || updating.value;
-    final description = "${album.albumType.name} • ${album.artists.asString()}";
+    final description =
+        "${displayAlbum.albumType.name} • ${displayAlbum.artists.asString()}";
 
     final onTap = useCallback(() {
-      context.navigateTo(AlbumRoute(id: album.id, album: album));
-    }, [context, album]);
+      context.navigateTo(AlbumRoute(id: displayAlbum.id, album: displayAlbum));
+    }, [context, displayAlbum]);
 
     final onPlaybuttonPressed = useCallback(() async {
       updating.value = true;
@@ -89,13 +94,13 @@ class AlbumCard extends HookConsumerWidget {
           await remotePlayback.load(
             WebSocketLoadEventData.album(
               tracks: fetchedTracks,
-              collection: album,
+              collection: displayAlbum,
             ),
           );
         } else {
           await playlistNotifier.load(fetchedTracks, autoPlay: true);
-          playlistNotifier.addCollection(album.id);
-          historyNotifier.addAlbums([album]);
+          playlistNotifier.addCollection(displayAlbum.id);
+          historyNotifier.addAlbums([displayAlbum]);
         }
       } finally {
         updating.value = false;
@@ -108,7 +113,7 @@ class AlbumCard extends HookConsumerWidget {
       context,
       ref,
       playlistNotifier,
-      album,
+      displayAlbum,
       historyNotifier,
       updating
     ]);
@@ -124,8 +129,8 @@ class AlbumCard extends HookConsumerWidget {
 
         if (fetchedTracks.isEmpty) return;
         playlistNotifier.addTracks(fetchedTracks);
-        playlistNotifier.addCollection(album.id);
-        historyNotifier.addAlbums([album]);
+        playlistNotifier.addCollection(displayAlbum.id);
+        historyNotifier.addAlbums([displayAlbum]);
         if (context.mounted) {
           showToast(
             context: context,
@@ -155,9 +160,9 @@ class AlbumCard extends HookConsumerWidget {
       updating.value,
       fetchAllTrack,
       playlistNotifier,
-      album.id,
+      displayAlbum.id,
       historyNotifier,
-      album,
+      displayAlbum,
       context
     ]);
 
@@ -166,7 +171,7 @@ class AlbumCard extends HookConsumerWidget {
         imageUrl: imageUrl,
         isPlaying: isPlaylistPlaying,
         isLoading: isLoading,
-        title: album.name,
+        title: displayAlbum.name,
         description: description,
         onTap: onTap,
         onPlaybuttonPressed: onPlaybuttonPressed,
@@ -178,7 +183,7 @@ class AlbumCard extends HookConsumerWidget {
       imageUrl: imageUrl,
       isPlaying: isPlaylistPlaying,
       isLoading: isLoading,
-      title: album.name,
+      title: displayAlbum.name,
       description: description,
       onTap: onTap,
       onPlaybuttonPressed: onPlaybuttonPressed,

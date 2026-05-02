@@ -1,7 +1,11 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_undraw/flutter_undraw.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:path/path.dart' as p;
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:shadcn_flutter/shadcn_flutter_extension.dart';
 import 'package:etgmusic/collections/spotube_icons.dart';
@@ -33,6 +37,41 @@ class LogsPage extends HookConsumerWidget {
             title: Text(context.l10n.logs),
             leading: const [BackButton()],
             trailing: [
+              IconButton.ghost(
+                icon: const Icon(SpotubeIcons.download, size: 16),
+                onPressed: () async {
+                  final logsSnapshot = await ref.read(logsProvider.future);
+                  final directory = await FilePicker.platform.getDirectoryPath(
+                    dialogTitle: "Куда сохранить журналы ETGmusic",
+                  );
+                  if (directory == null) return;
+
+                  final now = DateTime.now();
+                  final fileName =
+                      "etgmusic-logs-${now.year.toString().padLeft(4, '0')}"
+                      "${now.month.toString().padLeft(2, '0')}"
+                      "${now.day.toString().padLeft(2, '0')}-"
+                      "${now.hour.toString().padLeft(2, '0')}"
+                      "${now.minute.toString().padLeft(2, '0')}"
+                      "${now.second.toString().padLeft(2, '0')}.txt";
+                  final file = File(p.join(directory, fileName));
+                  await file.writeAsString(logsSnapshot);
+
+                  if (!context.mounted) return;
+                  showToast(
+                    context: context,
+                    location: ToastLocation.topRight,
+                    builder: (context, overlay) {
+                      return SurfaceCard(
+                        child: Basic(
+                          title: const Text("Журналы сохранены"),
+                          content: Text(file.path).xSmall().muted(),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
               IconButton.ghost(
                 icon: const Icon(SpotubeIcons.clipboard, size: 16),
                 onPressed: () async {

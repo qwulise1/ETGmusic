@@ -3,7 +3,7 @@ description: Telegram-first ETGmusic player built on Spotube with streaming, plu
 
 publish_to: "none"
 
-version: 5.1.2+45
+version: 5.1.3+46
 
 homepage: https://github.com/qwulise1/ETGmusic
 repository: https://github.com/qwulise1/ETGmusic

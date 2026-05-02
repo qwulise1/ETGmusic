@@ -104,6 +104,7 @@ class TrackPresentationTopSection extends HookConsumerWidget {
               );
             },
           ),
+        ...options.actions,
         if (options.shareUrl != null)
           Tooltip(
             tooltip: TooltipContainer(
