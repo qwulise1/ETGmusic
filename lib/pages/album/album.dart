@@ -3,6 +3,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
+import 'package:shadcn_flutter/shadcn_flutter_extension.dart';
 import 'package:etgmusic/collections/spotube_icons.dart';
 import 'package:etgmusic/components/track_presentation/presentation_props.dart';
 import 'package:etgmusic/components/track_presentation/track_presentation.dart';
