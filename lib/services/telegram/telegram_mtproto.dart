@@ -15,6 +15,7 @@ class TelegramMtprotoService {
   static const appName = "ETGmusic";
   static const _socketTimeout = Duration(seconds: 15);
   static const _authTimeout = Duration(seconds: 40);
+  static const _initTimeout = Duration(seconds: 60);
   static const _requestTimeout = Duration(seconds: 25);
   static const _apiIdKey = "telegram_mtproto_api_id";
   static const _apiHashKey = "telegram_mtproto_api_hash";
@@ -28,7 +29,7 @@ class TelegramMtprotoService {
   tg.Client? _client;
   Socket? _socket;
   StreamSubscription<t.UpdatesBase>? _updatesSubscription;
-  t.DcOption _dc = const t.DcOption(
+  static const _defaultDc = t.DcOption(
     ipv6: false,
     mediaOnly: false,
     tcpoOnly: false,
@@ -39,6 +40,7 @@ class TelegramMtprotoService {
     ipAddress: "149.154.167.50",
     port: 443,
   );
+  t.DcOption _dc = _defaultDc;
 
   Future<TelegramSessionSendCodeResult> sendCode({
     required int apiId,
@@ -451,6 +453,8 @@ class TelegramMtprotoService {
 	        apiId: _readApiId(),
 	        loadPersistedDc: false,
 	        allowLegacyAuthFallback: false,
+	        saveResolvedDc: false,
+	        retryDefaultDc: false,
 	      );
 
 	      if (exportedAuth != null) {
@@ -538,6 +542,8 @@ class TelegramMtprotoService {
 	    required int apiId,
 	    bool loadPersistedDc = true,
 	    bool allowLegacyAuthFallback = true,
+	    bool saveResolvedDc = true,
+	    bool retryDefaultDc = true,
 	  }) async {
 	    final existing = _client;
 	    if (existing != null) return existing;
@@ -554,10 +560,10 @@ class TelegramMtprotoService {
       final messageIdGenerator = tg.MessageIdGenerator();
       await transport.send(obfuscation.preamble).timeout(_socketTimeout);
 
-	      final loadedKey = await _readAuthKey(
-	        dcId: _dc.id,
-	        allowLegacyFallback: allowLegacyAuthFallback,
-	      );
+      final loadedKey = await _readAuthKey(
+        dcId: _dc.id,
+        allowLegacyFallback: allowLegacyAuthFallback,
+      );
       final authKey = loadedKey ??
           await tg.Client
               .authorize(
@@ -594,6 +600,7 @@ class TelegramMtprotoService {
           query: const t.HelpGetConfig(),
         ),
         "Telegram не ответил на инициализацию сессии. Попробуй еще раз.",
+        timeout: _initTimeout,
       );
 
       final result = config.result;
@@ -607,39 +614,91 @@ class TelegramMtprotoService {
                   .whereType<t.DcOption>()
                   .firstWhere((dc) => !dc.ipv6 && dc.port == 443),
             );
-	        if (loadPersistedDc) {
-	          await _saveDc(nearestDc);
-	        } else {
-	          _dc = nearestDc;
-	        }
+        if (saveResolvedDc) {
+          await _saveDc(nearestDc);
+        } else {
+          _dc = nearestDc;
+        }
 	      }
 
       _client = client;
       return client;
-    } on TelegramMtprotoException {
+    } on TelegramMtprotoException catch (error) {
       await _closeConnection(socket);
+      if (retryDefaultDc && _shouldRetrySessionInit(error)) {
+        return _retryConnectOnDefaultDc(
+          apiId: apiId,
+          allowLegacyAuthFallback: allowLegacyAuthFallback,
+          saveResolvedDc: saveResolvedDc,
+        );
+      }
       rethrow;
     } on TimeoutException catch (error, stackTrace) {
       AppLogger.reportError(error, stackTrace);
       await _closeConnection(socket);
+      if (retryDefaultDc) {
+        return _retryConnectOnDefaultDc(
+          apiId: apiId,
+          allowLegacyAuthFallback: allowLegacyAuthFallback,
+          saveResolvedDc: saveResolvedDc,
+        );
+      }
       throw const TelegramMtprotoException(
         "Telegram не ответил вовремя. Проверь сеть, API ID/API hash и попробуй еще раз.",
       );
     } on SocketException catch (error, stackTrace) {
       AppLogger.reportError(error, stackTrace);
       await _closeConnection(socket);
+      if (retryDefaultDc) {
+        return _retryConnectOnDefaultDc(
+          apiId: apiId,
+          allowLegacyAuthFallback: allowLegacyAuthFallback,
+          saveResolvedDc: saveResolvedDc,
+        );
+      }
       throw TelegramMtprotoException(
         "Не удалось подключиться к Telegram DC: ${error.message}",
       );
     } on tg.BadMessageException catch (error, stackTrace) {
       AppLogger.reportError(error, stackTrace);
       await _closeConnection(socket);
+      if (retryDefaultDc) {
+        return _retryConnectOnDefaultDc(
+          apiId: apiId,
+          allowLegacyAuthFallback: allowLegacyAuthFallback,
+          saveResolvedDc: saveResolvedDc,
+        );
+      }
       throw TelegramMtprotoException(_humanBadMessage(error));
     } catch (error, stackTrace) {
       AppLogger.reportError(error, stackTrace);
       await _closeConnection(socket);
       throw TelegramMtprotoException("MTProto не смог подключиться: $error");
     }
+  }
+
+  Future<tg.Client> _retryConnectOnDefaultDc({
+    required int apiId,
+    required bool allowLegacyAuthFallback,
+    required bool saveResolvedDc,
+  }) async {
+    _dc = _defaultDc;
+    await Future<void>.delayed(const Duration(milliseconds: 800));
+    return _connect(
+      apiId: apiId,
+      loadPersistedDc: false,
+      allowLegacyAuthFallback: allowLegacyAuthFallback,
+      saveResolvedDc: saveResolvedDc,
+      retryDefaultDc: false,
+    );
+  }
+
+  bool _shouldRetrySessionInit(TelegramMtprotoException error) {
+    final message = error.message;
+    return message.contains("инициализацию сессии") ||
+        message.contains("не ответил вовремя") ||
+        message.contains("старый MTProto session/seqno") ||
+        message.contains("server salt");
   }
 
   int _readApiId() {

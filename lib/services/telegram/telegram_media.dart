@@ -474,13 +474,11 @@ class TelegramMediaService {
       recordsById[id] = merged;
       indexed++;
 
-      if (indexed % 5 == 0 || indexed == tracks.length) {
-        final records = recordsById.values.toList()
-          ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
-        await _writeStoredTracks(records);
-        ref.invalidate(telegramMediaTracksProvider);
-        ref.read(telegramMediaRevisionProvider.notifier).state++;
-      }
+      final records = recordsById.values.toList()
+        ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
+      await _writeStoredTracks(records);
+      ref.invalidate(telegramMediaTracksProvider);
+      ref.read(telegramMediaRevisionProvider.notifier).state++;
 
       onProgress?.call(
         TelegramSyncProgress(

@@ -1,10 +1,7 @@
 package io.qwulise1.etgmusic
 
 import android.Manifest
-import android.app.Notification
-import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -16,7 +13,6 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity: AudioServiceActivity() {
     companion object {
         private const val METHOD_CHANNEL = "io.qwulise1.etgmusic/telegram_sync"
-        private const val NOTIFICATION_CHANNEL_ID = "telegram_sync"
         private const val NOTIFICATION_ID = 64026
         private const val NOTIFICATION_PERMISSION_REQUEST = 64027
     }
@@ -42,6 +38,7 @@ class MainActivity: AudioServiceActivity() {
                         result.success(null)
                     }
                     "cancel" -> {
+                        stopService(Intent(this, TelegramSyncService::class.java))
                         notificationManager().cancel(NOTIFICATION_ID)
                         result.success(null)
                     }
@@ -73,64 +70,24 @@ class MainActivity: AudioServiceActivity() {
         indeterminate: Boolean,
         done: Boolean,
     ) {
-        createNotificationChannel()
-
-        val openAppIntent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            openAppIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-
-        val icon = if (done) {
-            android.R.drawable.stat_sys_download_done
-        } else {
-            android.R.drawable.stat_sys_download
-        }
-        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, NOTIFICATION_CHANNEL_ID)
-        } else {
-            @Suppress("DEPRECATION")
-            Notification.Builder(this)
+        val intent = Intent(this, TelegramSyncService::class.java).apply {
+            putExtra(TelegramSyncService.EXTRA_TITLE, title)
+            putExtra(TelegramSyncService.EXTRA_TEXT, text)
+            putExtra(TelegramSyncService.EXTRA_PROGRESS, progress)
+            putExtra(TelegramSyncService.EXTRA_MAX, max)
+            putExtra(TelegramSyncService.EXTRA_INDETERMINATE, indeterminate)
+            putExtra(TelegramSyncService.EXTRA_DONE, done)
         }
 
-        builder
-            .setSmallIcon(icon)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setStyle(Notification.BigTextStyle().bigText(text))
-            .setContentIntent(pendingIntent)
-            .setOnlyAlertOnce(true)
-            .setShowWhen(false)
-            .setOngoing(!done)
-            .setAutoCancel(done)
-
-        if (!done) {
-            if (max > 0) {
-                builder.setProgress(max, progress.coerceIn(0, max), indeterminate)
+        try {
+            if (done || Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+                startService(intent)
             } else {
-                builder.setProgress(0, 0, true)
+                startForegroundService(intent)
             }
+        } catch (error: IllegalStateException) {
+            stopService(Intent(this, TelegramSyncService::class.java))
         }
-
-        notificationManager().notify(NOTIFICATION_ID, builder.build())
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-
-        val channel = NotificationChannel(
-            NOTIFICATION_CHANNEL_ID,
-            "ETGmusic Telegram sync",
-            NotificationManager.IMPORTANCE_LOW,
-        ).apply {
-            description = "Telegram sync and cache progress"
-            setSound(null, null)
-        }
-        notificationManager().createNotificationChannel(channel)
     }
 
     private fun notificationManager(): NotificationManager {
