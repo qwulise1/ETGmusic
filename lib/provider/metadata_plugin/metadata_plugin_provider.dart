@@ -108,7 +108,7 @@ class MetadataPluginNotifier extends AsyncNotifier<MetadataPluginState> {
 
     await _loadDefaultPlugins(pluginState);
 
-    return pluginState;
+    return await toStatePlugins(await database.pluginsTable.select().get());
   }
 
   Future<MetadataPluginState> toStatePlugins(
@@ -509,9 +509,20 @@ class MetadataPluginNotifier extends AsyncNotifier<MetadataPluginState> {
     }
 
     final oldPlugin = pluginRes.first;
+    Version? oldPluginVersion;
+    Version? newPluginVersion;
+    try {
+      oldPluginVersion = Version.parse(oldPlugin.version);
+      newPluginVersion = Version.parse(newPlugin.version);
+    } catch (_) {}
+    if (oldPluginVersion != null &&
+        newPluginVersion != null &&
+        newPluginVersion > oldPluginVersion) {
+      return true;
+    }
+
     final oldPluginApiVersion = Version.parse(oldPlugin.pluginApiVersion);
     final newPluginApiVersion = Version.parse(newPlugin.pluginApiVersion);
-
     return newPluginApiVersion > oldPluginApiVersion;
   }
 
@@ -611,7 +622,35 @@ final metadataPluginsProvider =
 final metadataPluginProvider = FutureProvider<MetadataPlugin?>(
   (ref) async {
     final telegramAuth = await ref.watch(telegramAuthProvider.future);
-    return createTelegramMetadataPlugin(ref, telegramAuth);
+    final telegramPlugin = createTelegramMetadataPlugin(ref, telegramAuth);
+    final defaultPlugin = await ref.watch(
+      metadataPluginsProvider
+          .selectAsync((data) => data.defaultMetadataPluginConfig),
+    );
+
+    if (defaultPlugin == null) {
+      return telegramPlugin;
+    }
+
+    try {
+      final youtubeEngine = ref.watch(youtubeEngineProvider);
+      final pluginsNotifier = ref.read(metadataPluginsProvider.notifier);
+      final pluginByteCode =
+          await pluginsNotifier.getPluginByteCode(defaultPlugin);
+      final externalPlugin = await MetadataPlugin.create(
+        youtubeEngine,
+        defaultPlugin,
+        pluginByteCode,
+      );
+
+      return createHybridTelegramMetadataPlugin(
+        telegramPlugin,
+        externalPlugin,
+      );
+    } catch (error, stackTrace) {
+      AppLogger.reportError(error, stackTrace);
+      return telegramPlugin;
+    }
   },
 );
 

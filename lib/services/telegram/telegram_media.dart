@@ -258,7 +258,7 @@ class TelegramMediaService {
     return null;
   }
 
-  Future<void> updateTrackMetadata(
+  Future<SpotubeFullTrackObject> updateTrackMetadata(
     String id, {
     required String name,
     required String artist,
@@ -272,21 +272,23 @@ class TelegramMediaService {
     }
 
     final record = records[index];
-    records[index] = record.copyWith(
+    final updatedRecord = record.copyWith(
       manualName: name.trim().isEmpty ? null : name.trim(),
       manualArtist: artist.trim().isEmpty ? null : artist.trim(),
       manualAlbum: album.trim().isEmpty ? null : album.trim(),
       coverUrl: coverUrl?.trim().isEmpty == true ? null : coverUrl?.trim(),
     );
+    records[index] = updatedRecord;
 
-	    await _writeStoredTracks(records);
-	    final database = ref.read(databaseProvider);
-	    await (database.delete(database.lyricsTable)
-	          ..where((table) => table.trackId.equals(id)))
-	        .go();
-	    ref.invalidate(telegramMediaTracksProvider);
-	    ref.read(telegramMediaRevisionProvider.notifier).state++;
-	  }
+    await _writeStoredTracks(records);
+    final database = ref.read(databaseProvider);
+    await (database.delete(database.lyricsTable)
+          ..where((table) => table.trackId.equals(id)))
+        .go();
+    ref.invalidate(telegramMediaTracksProvider);
+    ref.read(telegramMediaRevisionProvider.notifier).state++;
+    return updatedRecord.toMetadata();
+  }
 
   Future<TelegramSyncResult> syncBotUpdates({
     TelegramSyncProgressHandler? onProgress,

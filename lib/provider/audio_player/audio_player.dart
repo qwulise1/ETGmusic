@@ -448,6 +448,48 @@ class AudioPlayerNotifier extends Notifier<AudioPlayerState> {
     await audioPlayer.moveTrack(oldIndex, newIndex);
   }
 
+  Future<void> replaceTrack(SpotubeTrackObject track) async {
+    _assertAllowedTrack(track);
+
+    final index = state.tracks.indexWhere(
+      (element) => _compareTracks(element, track),
+    );
+    if (index == -1) return;
+
+    final updatedTracks = List<SpotubeTrackObject>.of(state.tracks);
+    updatedTracks[index] = track;
+    final currentIndex = state.currentIndex
+        .clamp(0, max(updatedTracks.length - 1, 0))
+        .toInt();
+    final position = audioPlayer.position;
+    final wasPlaying = audioPlayer.isPlaying;
+
+    state = state.copyWith(
+      tracks: updatedTracks,
+      currentIndex: currentIndex,
+    );
+
+    await _updatePlayerState(
+      AudioPlayerStateTableCompanion(
+        tracks: Value(state.tracks),
+        currentIndex: Value(currentIndex),
+      ),
+    );
+
+    if (updatedTracks.isEmpty) return;
+
+    await audioPlayer.openPlaylist(
+      updatedTracks.asMediaList(),
+      initialIndex: currentIndex,
+      autoPlay: wasPlaying,
+    );
+    await audioPlayer.setLoopMode(state.loopMode);
+    await audioPlayer.setShuffle(state.shuffled);
+    if (position > Duration.zero) {
+      await audioPlayer.seek(position);
+    }
+  }
+
   Future<void> stop() async {
     state = state.copyWith(
       tracks: [],

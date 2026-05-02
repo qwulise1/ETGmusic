@@ -204,17 +204,19 @@ class TrackOptionsActions {
 
       if (saved != true) return;
 
-	      await ref.read(telegramMediaServiceProvider).updateTrackMetadata(
-	            track.id,
-	            name: nameController.text,
-	            artist: artistController.text,
-	            album: albumController.text,
-	            coverUrl: coverController.text,
-	          );
-	      ref.invalidate(metadataPluginSavedTracksProvider);
-	      ref.invalidate(metadataPluginPlaylistTracksProvider("telegram-library"));
+      final updatedTrack =
+          await ref.read(telegramMediaServiceProvider).updateTrackMetadata(
+                track.id,
+                name: nameController.text,
+                artist: artistController.text,
+                album: albumController.text,
+                coverUrl: coverController.text,
+              );
+      await ref.read(audioPlayerProvider.notifier).replaceTrack(updatedTrack);
+      ref.invalidate(metadataPluginSavedTracksProvider);
+      ref.invalidate(metadataPluginPlaylistTracksProvider("telegram-library"));
 
-	      if (!context.mounted) return;
+      if (!context.mounted) return;
       showToast(
         context: context,
         location: ToastLocation.topRight,

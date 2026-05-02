@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:auto_size_text/auto_size_text.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
@@ -46,8 +47,8 @@ class PlayerView extends HookConsumerWidget {
     final mediaQuery = MediaQuery.sizeOf(context);
     final qualityLabel = ref.watch(audioSourceQualityLabelProvider);
     final showVolumeControl = ref.watch(playerVolumeControlProvider);
-    final albumArtSize = (mediaQuery.smAndDown ? mediaQuery.width - 48 : 360)
-        .clamp(240, 380)
+    final albumArtSize = (mediaQuery.smAndDown ? mediaQuery.width - 36 : 420)
+        .clamp(280, 520)
         .toDouble();
 
     final shouldHide = useState(true);
@@ -105,6 +106,27 @@ class PlayerView extends HookConsumerWidget {
               child: TitleBar(
                 surfaceOpacity: 0,
                 surfaceBlur: 0,
+                title: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      "ИЗ ПЛЕЙЛИСТА",
+                      style: theme.typography.xSmall.copyWith(
+                        color: theme.colorScheme.mutedForeground,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    Text(
+                      currentActiveTrack?.album.name ?? "ETGmusic",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.typography.xSmall.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
                 leading: [
                   IconButton.ghost(
                     size: const ButtonSize(1.2),
@@ -120,7 +142,7 @@ class PlayerView extends HookConsumerWidget {
                       ).call,
                       child: IconButton.ghost(
                         size: const ButtonSize(1.2),
-                        icon: const Icon(SpotubeIcons.info),
+                        icon: const Icon(SpotubeIcons.moreVertical),
                         onPressed: currentActiveTrackSource == null
                             ? null
                             : () {
@@ -153,129 +175,196 @@ class PlayerView extends HookConsumerWidget {
             child: SingleChildScrollView(
               controller: scrollController,
               child: Padding(
-                padding: const EdgeInsets.all(8.0),
-              child: Column(
-                children: [
-                  Container(
-                    margin: const EdgeInsets.fromLTRB(16, 14, 16, 22),
-                    padding: const EdgeInsets.all(10),
-                    constraints: BoxConstraints(
-                      maxHeight: albumArtSize,
-                      maxWidth: albumArtSize,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(34),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          theme.colorScheme.primary.withAlpha(70),
-                          theme.colorScheme.secondary.withAlpha(34),
-                        ],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withAlpha(90),
-                          spreadRadius: 1,
-                          blurRadius: 28,
-                          offset: Offset.zero,
+                padding: EdgeInsets.fromLTRB(
+                  18,
+                  mediaQuery.smAndDown ? 54 : 28,
+                  18,
+                  30,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        constraints: BoxConstraints.square(
+                          dimension: albumArtSize,
                         ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(26),
-                      child: UniversalImage(
-                        path: albumArt,
-                        placeholder: Assets.images.albumPlaceholder.path,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                    padding: const EdgeInsets.all(18),
-                    alignment: Alignment.centerLeft,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.card.withAlpha(210),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: theme.colorScheme.border.withAlpha(140),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        AutoSizeText(
-                          currentActiveTrack?.name ?? context.l10n.not_playing,
-                          style: const TextStyle(fontSize: 22),
-                          maxFontSize: 22,
-                          maxLines: 1,
-                          textAlign: TextAlign.start,
-                        ),
-                        if (isLocalTrack)
-                          Text(
-                            currentActiveTrack.artists.asString(),
-                            style: theme.typography.normal
-                                .copyWith(fontWeight: FontWeight.bold),
-                          )
-                        else
-                          ArtistLink(
-                            artists: currentActiveTrack?.artists ?? [],
-                            textStyle: theme.typography.normal
-                                .copyWith(fontWeight: FontWeight.bold),
-                            onRouteChange: (route) {
-                              panelController.close();
-                              context.router.navigateNamed(route);
-                            },
-                            onOverflowArtistClick: () => context.navigateTo(
-                              TrackRoute(
-                                trackId: currentActiveTrack!.id,
-                              ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withAlpha(120),
+                              blurRadius: 34,
+                              offset: const Offset(0, 22),
                             ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: UniversalImage(
+                            path: albumArt,
+                            placeholder: Assets.images.albumPlaceholder.path,
+                            fit: BoxFit.cover,
                           ),
-                      ],
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  const PlayerControls(),
-                  const SizedBox(height: 25),
-                  const PlayerActions(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    showQueue: false,
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: OutlineButton(
-                          leading: const Icon(SpotubeIcons.queue),
-                          child: Text(context.l10n.queue),
+                    const SizedBox(height: 54),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              AutoSizeText(
+                                currentActiveTrack?.name ??
+                                    context.l10n.not_playing,
+                                style: theme.typography.large.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                                maxFontSize: 22,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              if (isLocalTrack)
+                                Text(
+                                  (currentActiveTrack
+                                          as SpotubeLocalTrackObject)
+                                      .artists
+                                      .asString(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.typography.small.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color:
+                                        theme.colorScheme.mutedForeground,
+                                  ),
+                                )
+                              else
+                                ArtistLink(
+                                  artists: currentActiveTrack?.artists ?? [],
+                                  textStyle:
+                                      theme.typography.small.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color:
+                                        theme.colorScheme.mutedForeground,
+                                  ),
+                                  onRouteChange: (route) {
+                                    panelController.close();
+                                    context.router.navigateNamed(route);
+                                  },
+                                  onOverflowArtistClick: () =>
+                                      context.navigateTo(
+                                    TrackRoute(
+                                      trackId: currentActiveTrack!.id,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        IconButton.ghost(
+                          size: const ButtonSize(1.35),
+                          icon: const Icon(SpotubeIcons.close),
+                          enabled: currentActiveTrack != null,
+                          onPressed: () {
+                            panelController.close();
+                          },
+                        ),
+                        IconButton.outline(
+                          size: const ButtonSize(1.35),
+                          shape: ButtonShape.circle,
+                          icon: const Icon(SpotubeIcons.add),
+                          enabled: currentActiveTrack != null,
                           onPressed: () {
                             context.pushRoute(const PlayerQueueRoute());
                           },
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: OutlineButton(
-                          leading: const Icon(SpotubeIcons.music),
-                          child: Text(context.l10n.lyrics),
-                          onPressed: () {
-                            context.pushRoute(const PlayerLyricsRoute());
-                          },
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const PlayerControls(),
+                    const SizedBox(height: 14),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const PlayerActions(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          showQueue: false,
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                    ],
-                  ),
-                  const SizedBox(height: 25),
-                  if (showVolumeControl) ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Consumer(builder: (context, ref, _) {
+                        Row(
+                          children: [
+                            IconButton.ghost(
+                              icon: const Icon(SpotubeIcons.share),
+                              enabled: currentActiveTrack != null,
+                              onPressed: currentActiveTrack == null
+                                  ? null
+                                  : () {
+                                      Clipboard.setData(
+                                        ClipboardData(
+                                          text:
+                                              currentActiveTrack!.externalUri,
+                                        ),
+                                      ).then((_) {
+                                        if (!context.mounted) return;
+                                        showToast(
+                                          context: context,
+                                          location: ToastLocation.topRight,
+                                          builder: (context, overlay) =>
+                                              SurfaceCard(
+                                            child: Text(
+                                              context.l10n.copied_to_clipboard(
+                                                currentActiveTrack!
+                                                    .externalUri,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      });
+                                    },
+                            ),
+                            IconButton.ghost(
+                              icon: const Icon(SpotubeIcons.queue),
+                              enabled: currentActiveTrack != null,
+                              onPressed: () {
+                                context.pushRoute(
+                                  const PlayerQueueRoute(),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlineButton(
+                            leading: const Icon(SpotubeIcons.queue),
+                            child: Text(context.l10n.queue),
+                            onPressed: () {
+                              context.pushRoute(const PlayerQueueRoute());
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlineButton(
+                            leading: const Icon(SpotubeIcons.music),
+                            child: Text(context.l10n.lyrics),
+                            onPressed: () {
+                              context.pushRoute(const PlayerLyricsRoute());
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    if (showVolumeControl) ...[
+                      Consumer(builder: (context, ref, _) {
                         final volume = ref.watch(volumeProvider);
                         return VolumeSlider(
                           fullWidth: true,
@@ -285,24 +374,26 @@ class PlayerView extends HookConsumerWidget {
                           },
                         );
                       }),
+                      const Gap(18),
+                    ],
+                    Center(
+                      child: OutlineBadge(
+                        style: const ButtonStyle.outline(
+                          size: ButtonSize.normal,
+                          density: ButtonDensity.dense,
+                          shape: ButtonShape.rectangle,
+                        ).copyWith(
+                          textStyle: (context, states, value) {
+                            return value.copyWith(fontWeight: FontWeight.w500);
+                          },
+                        ),
+                        leading:
+                            const Icon(SpotubeIcons.lightningOutlined),
+                        child: Text(qualityLabel),
+                      ),
                     ),
-                    const Gap(25),
                   ],
-                  OutlineBadge(
-                    style: const ButtonStyle.outline(
-                      size: ButtonSize.normal,
-                      density: ButtonDensity.dense,
-                      shape: ButtonShape.rectangle,
-                    ).copyWith(
-                      textStyle: (context, states, value) {
-                        return value.copyWith(fontWeight: FontWeight.w500);
-                      },
-                    ),
-                    leading: const Icon(SpotubeIcons.lightningOutlined),
-                    child: Text(qualityLabel),
-                  )
-                ],
-              ),
+                ),
               ),
             ),
           ),
