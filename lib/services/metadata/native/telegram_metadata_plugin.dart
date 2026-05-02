@@ -37,7 +37,7 @@ MetadataPlugin createHybridTelegramMetadataPlugin(
     audioSource: telegram.audioSource,
     album: _HybridAlbumEndpoint(telegram.album, external.album),
     artist: _HybridArtistEndpoint(telegram.artist, external.artist),
-    browse: external.browse,
+    browse: _HybridBrowseEndpoint(external.browse),
     search: _HybridSearchEndpoint(telegram.search, external.search),
     playlist: _HybridPlaylistEndpoint(telegram.playlist, external.playlist),
     track: _HybridTrackEndpoint(telegram.track, external.track),
@@ -81,6 +81,49 @@ class _HybridAuthEndpoint {
     try {
       await external.logout();
     } catch (_) {}
+  }
+}
+
+class _HybridBrowseEndpoint {
+  final dynamic external;
+
+  _HybridBrowseEndpoint(this.external);
+
+  Future<SpotubePaginationResponseObject<SpotubeBrowseSectionObject<Object>>>
+      sections({
+    int? offset,
+    int? limit,
+  }) async {
+    return await _safeFuture(
+      () async => await external.sections(
+        offset: offset,
+        limit: limit,
+      ) as SpotubePaginationResponseObject<SpotubeBrowseSectionObject<Object>>,
+      _paginate(
+        const <SpotubeBrowseSectionObject<Object>>[],
+        offset: offset,
+        limit: limit,
+      ),
+    );
+  }
+
+  Future<SpotubePaginationResponseObject<Object>> sectionItems(
+    String id, {
+    int? offset,
+    int? limit,
+  }) async {
+    return await _safeFuture(
+      () async => await external.sectionItems(
+        id,
+        offset: offset,
+        limit: limit,
+      ) as SpotubePaginationResponseObject<Object>,
+      _paginate(
+        const <Object>[],
+        offset: offset,
+        limit: limit,
+      ),
+    );
   }
 }
 
@@ -271,24 +314,38 @@ class _HybridTrackEndpoint {
 
   Future<SpotubeFullTrackObject> getTrack(String id) async {
     if (_isTelegramId(id)) return await telegram.getTrack(id);
-    return await external.getTrack(id);
+    return await _safeFuture(
+      () async => await external.getTrack(id) as SpotubeFullTrackObject,
+      _fallbackTrack(id),
+    );
   }
 
   Future<void> save(List<String> ids) async {
     final externalIds = ids.where((id) => !_isTelegramId(id)).toList();
-    if (externalIds.isNotEmpty) await external.save(externalIds);
+    if (externalIds.isNotEmpty) {
+      await _safeVoid(() async {
+        await external.save(externalIds);
+      });
+    }
   }
 
   Future<void> unsave(List<String> ids) async {
     final externalIds = ids.where((id) => !_isTelegramId(id)).toList();
-    if (externalIds.isNotEmpty) await external.unsave(externalIds);
+    if (externalIds.isNotEmpty) {
+      await _safeVoid(() async {
+        await external.unsave(externalIds);
+      });
+    }
   }
 
   Future<List<SpotubeFullTrackObject>> radio(String id) async {
     if (_isTelegramId(id)) {
       return await telegram.radio(id) as List<SpotubeFullTrackObject>;
     }
-    return await external.radio(id) as List<SpotubeFullTrackObject>;
+    return await _safeFuture(
+      () async => await external.radio(id) as List<SpotubeFullTrackObject>,
+      const <SpotubeFullTrackObject>[],
+    );
   }
 }
 
@@ -300,7 +357,10 @@ class _HybridAlbumEndpoint {
 
   Future<SpotubeFullAlbumObject> getAlbum(String id) async {
     if (_isTelegramId(id)) return await telegram.getAlbum(id);
-    return await external.getAlbum(id);
+    return await _safeFuture(
+      () async => await external.getAlbum(id) as SpotubeFullAlbumObject,
+      _fallbackAlbum(id),
+    );
   }
 
   Future<SpotubePaginationResponseObject<SpotubeFullTrackObject>> tracks(
@@ -311,24 +371,49 @@ class _HybridAlbumEndpoint {
     if (_isTelegramId(id)) {
       return await telegram.tracks(id, offset: offset, limit: limit);
     }
-    return await external.tracks(id, offset: offset, limit: limit);
+    return await _safeFuture(
+      () async => await external.tracks(
+        id,
+        offset: offset,
+        limit: limit,
+      ) as SpotubePaginationResponseObject<SpotubeFullTrackObject>,
+      _paginate(const <SpotubeFullTrackObject>[], offset: offset, limit: limit),
+    );
   }
 
   Future<SpotubePaginationResponseObject<SpotubeSimpleAlbumObject>> releases({
     int? offset,
     int? limit,
   }) async {
-    return await external.releases(offset: offset, limit: limit);
+    return await _safeFuture(
+      () async => await external.releases(
+        offset: offset,
+        limit: limit,
+      ) as SpotubePaginationResponseObject<SpotubeSimpleAlbumObject>,
+      _paginate(
+        const <SpotubeSimpleAlbumObject>[],
+        offset: offset,
+        limit: limit,
+      ),
+    );
   }
 
   Future<void> save(List<String> ids) async {
     final externalIds = ids.where((id) => !_isTelegramId(id)).toList();
-    if (externalIds.isNotEmpty) await external.save(externalIds);
+    if (externalIds.isNotEmpty) {
+      await _safeVoid(() async {
+        await external.save(externalIds);
+      });
+    }
   }
 
   Future<void> unsave(List<String> ids) async {
     final externalIds = ids.where((id) => !_isTelegramId(id)).toList();
-    if (externalIds.isNotEmpty) await external.unsave(externalIds);
+    if (externalIds.isNotEmpty) {
+      await _safeVoid(() async {
+        await external.unsave(externalIds);
+      });
+    }
   }
 }
 
@@ -340,7 +425,10 @@ class _HybridArtistEndpoint {
 
   Future<SpotubeFullArtistObject> getArtist(String id) async {
     if (_isTelegramId(id)) return await telegram.getArtist(id);
-    return await external.getArtist(id);
+    return await _safeFuture(
+      () async => await external.getArtist(id) as SpotubeFullArtistObject,
+      _fallbackArtist(id),
+    );
   }
 
   Future<SpotubePaginationResponseObject<SpotubeFullTrackObject>> topTracks(
@@ -351,7 +439,14 @@ class _HybridArtistEndpoint {
     if (_isTelegramId(id)) {
       return await telegram.topTracks(id, offset: offset, limit: limit);
     }
-    return await external.topTracks(id, offset: offset, limit: limit);
+    return await _safeFuture(
+      () async => await external.topTracks(
+        id,
+        offset: offset,
+        limit: limit,
+      ) as SpotubePaginationResponseObject<SpotubeFullTrackObject>,
+      _paginate(const <SpotubeFullTrackObject>[], offset: offset, limit: limit),
+    );
   }
 
   Future<SpotubePaginationResponseObject<SpotubeSimpleAlbumObject>> albums(
@@ -362,7 +457,18 @@ class _HybridArtistEndpoint {
     if (_isTelegramId(id)) {
       return await telegram.albums(id, offset: offset, limit: limit);
     }
-    return await external.albums(id, offset: offset, limit: limit);
+    return await _safeFuture(
+      () async => await external.albums(
+        id,
+        offset: offset,
+        limit: limit,
+      ) as SpotubePaginationResponseObject<SpotubeSimpleAlbumObject>,
+      _paginate(
+        const <SpotubeSimpleAlbumObject>[],
+        offset: offset,
+        limit: limit,
+      ),
+    );
   }
 
   Future<SpotubePaginationResponseObject<SpotubeFullArtistObject>> related(
@@ -373,17 +479,32 @@ class _HybridArtistEndpoint {
     if (_isTelegramId(id)) {
       return await telegram.related(id, offset: offset, limit: limit);
     }
-    return await external.related(id, offset: offset, limit: limit);
+    return await _safeFuture(
+      () async => await external.related(
+        id,
+        offset: offset,
+        limit: limit,
+      ) as SpotubePaginationResponseObject<SpotubeFullArtistObject>,
+      _paginate(const <SpotubeFullArtistObject>[], offset: offset, limit: limit),
+    );
   }
 
   Future<void> save(List<String> ids) async {
     final externalIds = ids.where((id) => !_isTelegramId(id)).toList();
-    if (externalIds.isNotEmpty) await external.save(externalIds);
+    if (externalIds.isNotEmpty) {
+      await _safeVoid(() async {
+        await external.save(externalIds);
+      });
+    }
   }
 
   Future<void> unsave(List<String> ids) async {
     final externalIds = ids.where((id) => !_isTelegramId(id)).toList();
-    if (externalIds.isNotEmpty) await external.unsave(externalIds);
+    if (externalIds.isNotEmpty) {
+      await _safeVoid(() async {
+        await external.unsave(externalIds);
+      });
+    }
   }
 }
 
@@ -397,7 +518,10 @@ class _HybridPlaylistEndpoint {
     if (id == _telegramPlaylistId || _isTelegramId(id)) {
       return await telegram.getPlaylist(id);
     }
-    return await external.getPlaylist(id);
+    return await _safeFuture(
+      () async => await external.getPlaylist(id) as SpotubeFullPlaylistObject,
+      _fallbackPlaylist(id),
+    );
   }
 
   Future<SpotubePaginationResponseObject<SpotubeFullTrackObject>> tracks(
@@ -408,7 +532,14 @@ class _HybridPlaylistEndpoint {
     if (id == _telegramPlaylistId || _isTelegramId(id)) {
       return await telegram.tracks(id, offset: offset, limit: limit);
     }
-    return await external.tracks(id, offset: offset, limit: limit);
+    return await _safeFuture(
+      () async => await external.tracks(
+        id,
+        offset: offset,
+        limit: limit,
+      ) as SpotubePaginationResponseObject<SpotubeFullTrackObject>,
+      _paginate(const <SpotubeFullTrackObject>[], offset: offset, limit: limit),
+    );
   }
 
   Future<SpotubeFullPlaylistObject?> create(
@@ -418,12 +549,15 @@ class _HybridPlaylistEndpoint {
     bool? public,
     bool? collaborative,
   }) async {
-    return await external.create(
-      userId,
-      name: name,
-      description: description,
-      public: public,
-      collaborative: collaborative,
+    return await _safeFuture<SpotubeFullPlaylistObject?>(
+      () async => await external.create(
+        userId,
+        name: name,
+        description: description,
+        public: public,
+        collaborative: collaborative,
+      ) as SpotubeFullPlaylistObject?,
+      null,
     );
   }
 
@@ -435,12 +569,16 @@ class _HybridPlaylistEndpoint {
     bool? collaborative,
   }) async {
     if (playlistId == _telegramPlaylistId || _isTelegramId(playlistId)) return;
-    await external.update(
-      playlistId,
-      name: name,
-      description: description,
-      public: public,
-      collaborative: collaborative,
+    await _safeVoid(
+      () async {
+        await external.update(
+          playlistId,
+          name: name,
+          description: description,
+          public: public,
+          collaborative: collaborative,
+        );
+      },
     );
   }
 
@@ -450,10 +588,14 @@ class _HybridPlaylistEndpoint {
     int? position,
   }) async {
     if (playlistId == _telegramPlaylistId || _isTelegramId(playlistId)) return;
-    await external.addTracks(
-      playlistId,
-      trackIds: trackIds.where((id) => !_isTelegramId(id)).toList(),
-      position: position,
+    await _safeVoid(
+      () async {
+        await external.addTracks(
+          playlistId,
+          trackIds: trackIds.where((id) => !_isTelegramId(id)).toList(),
+          position: position,
+        );
+      },
     );
   }
 
@@ -462,25 +604,35 @@ class _HybridPlaylistEndpoint {
     required List<String> trackIds,
   }) async {
     if (playlistId == _telegramPlaylistId || _isTelegramId(playlistId)) return;
-    await external.removeTracks(
-      playlistId,
-      trackIds: trackIds.where((id) => !_isTelegramId(id)).toList(),
+    await _safeVoid(
+      () async {
+        await external.removeTracks(
+          playlistId,
+          trackIds: trackIds.where((id) => !_isTelegramId(id)).toList(),
+        );
+      },
     );
   }
 
   Future<void> save(String playlistId) async {
     if (playlistId == _telegramPlaylistId || _isTelegramId(playlistId)) return;
-    await external.save(playlistId);
+    await _safeVoid(() async {
+      await external.save(playlistId);
+    });
   }
 
   Future<void> unsave(String playlistId) async {
     if (playlistId == _telegramPlaylistId || _isTelegramId(playlistId)) return;
-    await external.unsave(playlistId);
+    await _safeVoid(() async {
+      await external.unsave(playlistId);
+    });
   }
 
   Future<void> deletePlaylist(String playlistId) async {
     if (playlistId == _telegramPlaylistId || _isTelegramId(playlistId)) return;
-    await external.deletePlaylist(playlistId);
+    await _safeVoid(() async {
+      await external.deletePlaylist(playlistId);
+    });
   }
 }
 
@@ -490,8 +642,14 @@ class _HybridCoreEndpoint {
 
   _HybridCoreEndpoint(this.telegram, this.external);
 
-  Future<PluginUpdateAvailable?> checkUpdate(PluginConfiguration pluginConfig) {
-    return external.checkUpdate(pluginConfig) as Future<PluginUpdateAvailable?>;
+  Future<PluginUpdateAvailable?> checkUpdate(
+    PluginConfiguration pluginConfig,
+  ) async {
+    return await _safeFuture<PluginUpdateAvailable?>(
+      () async =>
+          await external.checkUpdate(pluginConfig) as PluginUpdateAvailable?,
+      null,
+    );
   }
 
   Future<String> get support async {
@@ -506,7 +664,9 @@ class _HybridCoreEndpoint {
   }
 
   Future<void> scrobble(Map<String, dynamic> details) async {
-    await external.scrobble(details);
+    await _safeVoid(() async {
+      await external.scrobble(details);
+    });
   }
 }
 
@@ -1004,6 +1164,83 @@ SpotubeSearchResponseObject _emptySearch() {
   );
 }
 
+SpotubeSimpleArtistObject _fallbackSimpleArtist(String id) {
+  return SpotubeSimpleArtistObject(
+    id: id,
+    name: "Недоступно",
+    externalUri: id,
+  );
+}
+
+SpotubeFullArtistObject _fallbackArtist(String id) {
+  return SpotubeFullArtistObject(
+    id: id,
+    name: "Недоступно",
+    externalUri: id,
+    images: const [],
+  );
+}
+
+SpotubeSimpleAlbumObject _fallbackSimpleAlbum(String id) {
+  return SpotubeSimpleAlbumObject(
+    id: id,
+    name: "Недоступный альбом",
+    externalUri: id,
+    artists: [_fallbackSimpleArtist("external:unavailable")],
+    images: const [],
+    albumType: SpotubeAlbumType.album,
+    releaseDate: DateTime.now().year.toString(),
+  );
+}
+
+SpotubeFullAlbumObject _fallbackAlbum(String id) {
+  return SpotubeFullAlbumObject(
+    id: id,
+    name: "Недоступный альбом",
+    artists: [_fallbackSimpleArtist("external:unavailable")],
+    images: const [],
+    releaseDate: DateTime.now().year.toString(),
+    externalUri: id,
+    totalTracks: 0,
+    albumType: SpotubeAlbumType.album,
+  );
+}
+
+SpotubeFullTrackObject _fallbackTrack(String id) {
+  return SpotubeTrackObject.full(
+    id: id,
+    name: "Недоступный трек",
+    externalUri: id,
+    artists: [_fallbackSimpleArtist("external:unavailable")],
+    album: _fallbackSimpleAlbum("external:unavailable-album"),
+    durationMs: 0,
+    isrc: "",
+    explicit: false,
+  ) as SpotubeFullTrackObject;
+}
+
+SpotubeUserObject _fallbackUser() {
+  return SpotubeUserObject(
+    id: "external:unavailable-user",
+    name: "ETGmusic",
+    externalUri: "etgmusic://external",
+    images: const [],
+  );
+}
+
+SpotubeFullPlaylistObject _fallbackPlaylist(String id) {
+  return SpotubeFullPlaylistObject(
+    id: id,
+    name: "Недоступный плейлист",
+    description: "",
+    externalUri: id,
+    owner: _fallbackUser(),
+    images: const [],
+    collaborative: false,
+    public: false,
+  );
+}
+
 List<T> _dedupeById<T>(List<T> items, String Function(T item) idOf) {
   final seen = <String>{};
   return items.where((item) => seen.add(idOf(item))).toList();
@@ -1015,6 +1252,12 @@ Future<T> _safeFuture<T>(Future<T> Function() task, T fallback) async {
   } catch (_) {
     return fallback;
   }
+}
+
+Future<void> _safeVoid(Future<void> Function() task) async {
+  try {
+    await task();
+  } catch (_) {}
 }
 
 T _safeSync<T>(T Function() task, T fallback) {

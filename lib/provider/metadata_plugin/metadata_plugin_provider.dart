@@ -242,6 +242,13 @@ class MetadataPluginNotifier extends AsyncNotifier<MetadataPluginState> {
   Future<void> _activateBundledPluginDefaults() async {
     final latestPluginState =
         await toStatePlugins(await database.pluginsTable.select().get());
+    final musicBrainz = latestPluginState.plugins.firstWhereOrNull(
+      (plugin) =>
+          plugin.repository ==
+              "https://github.com/KRTirtho/spotube-plugin-musicbrainz-listenbrainz" ||
+          plugin.slug.contains("musicbrainz") ||
+          plugin.slug.contains("listenbrainz"),
+    );
     final spotify = latestPluginState.plugins.firstWhereOrNull(
       (plugin) =>
           plugin.repository ==
@@ -255,9 +262,10 @@ class MetadataPluginNotifier extends AsyncNotifier<MetadataPluginState> {
           plugin.slug == "youtube-audio",
     );
 
-    if (spotify != null &&
-        latestPluginState.defaultMetadataPluginConfig != spotify) {
-      await setDefaultMetadataPlugin(spotify);
+    final metadataPlugin = musicBrainz ?? spotify;
+    if (metadataPlugin != null &&
+        latestPluginState.defaultMetadataPluginConfig != metadataPlugin) {
+      await setDefaultMetadataPlugin(metadataPlugin);
     }
     if (youtubeAudio != null &&
         latestPluginState.defaultAudioSourcePluginConfig != youtubeAudio) {
