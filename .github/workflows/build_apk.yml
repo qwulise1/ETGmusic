@@ -10,6 +10,7 @@ permissions:
 
 env:
   FLUTTER_VERSION: "3.35.2"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   build:
