@@ -2,6 +2,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:etgmusic/collections/routes.gr.dart';
 import 'package:etgmusic/components/titlebar/titlebar.dart';
+import 'package:etgmusic/collections/spotube_icons.dart';
 import 'package:etgmusic/modules/stats/summary/summary.dart';
 import 'package:etgmusic/modules/stats/top/top.dart';
 import 'package:etgmusic/utils/platform.dart';
@@ -30,6 +31,7 @@ class StatsPage extends HookConsumerWidget {
           child: CustomScrollView(
             slivers: [
               if (kIsMacOS) const SliverGap(20),
+              const SliverToBoxAdapter(child: _StatsHeader()),
               const StatsPageSummarySection(),
               const StatsPageTopSection(),
               const SliverToBoxAdapter(
@@ -39,6 +41,59 @@ class StatsPage extends HookConsumerWidget {
               )
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatsHeader extends StatelessWidget {
+  const _StatsHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+      child: SurfaceCard(
+        padding: const EdgeInsets.all(18),
+        borderRadius: BorderRadius.circular(28),
+        child: Row(
+          children: [
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: theme.colorScheme.primary.withValues(alpha: 0.18),
+              ),
+              child: const Icon(SpotubeIcons.chart, size: 26),
+            ),
+            const Gap(14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    "Твоя статистика",
+                    style: theme.typography.h3.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const Gap(4),
+                  Text(
+                    "Прослушивания, любимые артисты, альбомы и динамика активности.",
+                    style: theme.typography.small.copyWith(
+                      color: theme.colorScheme.mutedForeground,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

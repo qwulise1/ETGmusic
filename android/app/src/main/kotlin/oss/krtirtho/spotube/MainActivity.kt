@@ -8,13 +8,16 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.audiofx.AudioEffect
 import android.os.Build
+import androidx.core.content.FileProvider
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
 
 class MainActivity: AudioServiceActivity() {
     companion object {
         private const val METHOD_CHANNEL = "io.qwulise1.etgmusic/telegram_sync"
+        private const val SHARE_CHANNEL = "io.qwulise1.etgmusic/share"
         private const val NOTIFICATION_ID = 64026
         private const val NOTIFICATION_PERMISSION_REQUEST = 64027
     }
@@ -48,6 +51,22 @@ class MainActivity: AudioServiceActivity() {
                         result.success(
                             openAudioEffects(
                                 call.argument<Int>("sessionId") ?: 0,
+                            ),
+                        )
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHARE_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "shareFile" -> {
+                        result.success(
+                            shareFile(
+                                path = call.argument<String>("path") ?: "",
+                                mimeType = call.argument<String>("mimeType") ?: "audio/*",
+                                title = call.argument<String>("title") ?: "ETGmusic",
                             ),
                         )
                     }
@@ -112,6 +131,33 @@ class MainActivity: AudioServiceActivity() {
 
         return try {
             startActivityForResult(intent, 64028)
+            true
+        } catch (_: ActivityNotFoundException) {
+            false
+        }
+    }
+
+    private fun shareFile(path: String, mimeType: String, title: String): Boolean {
+        val file = File(path)
+        if (!file.exists() || !file.isFile || file.length() <= 0L) {
+            return false
+        }
+
+        val uri = FileProvider.getUriForFile(
+            this,
+            "$packageName.fileprovider",
+            file,
+        )
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = mimeType.ifBlank { "audio/*" }
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_TITLE, title)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        grantUriPermission(packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+        return try {
+            startActivity(Intent.createChooser(intent, title))
             true
         } catch (_: ActivityNotFoundException) {
             false

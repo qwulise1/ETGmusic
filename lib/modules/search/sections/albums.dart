@@ -16,6 +16,7 @@ class SearchAlbumsSection extends HookConsumerWidget {
     final searchTerm = ref.watch(searchTermStateProvider);
     final search = ref.watch(metadataPluginSearchAllProvider(searchTerm));
     final albums = search.asData?.value.albums ?? [];
+    if (albums.isEmpty) return const SizedBox.shrink();
 
     return HorizontalPlaybuttonCardView(
       isLoadingNextPage: false,

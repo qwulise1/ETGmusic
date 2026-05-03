@@ -67,6 +67,7 @@ class HomePage extends HookConsumerWidget {
               else if (kIsMacOS)
                 const SliverGap(10),
               const SliverGap(10),
+              const SliverToBoxAdapter(child: _HomeHero()),
               SliverList.builder(
                 itemCount: 3,
                 itemBuilder: (context, index) {
@@ -83,5 +84,101 @@ class HomePage extends HookConsumerWidget {
             ],
           ),
         ));
+  }
+}
+
+class _HomeHero extends StatelessWidget {
+  const _HomeHero();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 16),
+      child: SurfaceCard(
+        padding: const EdgeInsets.all(18),
+        borderRadius: BorderRadius.circular(30),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                theme.colorScheme.primary.withValues(alpha: 0.28),
+                theme.colorScheme.secondary.withValues(alpha: 0.14),
+                theme.colorScheme.background.withValues(alpha: 0.04),
+              ],
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Wrap(
+              spacing: 14,
+              runSpacing: 14,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              alignment: WrapAlignment.spaceBetween,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        "ETGmusic",
+                        style: theme.typography.h2.copyWith(
+                          fontFamily: "Cookie",
+                          fontSize: 44,
+                          letterSpacing: 1.2,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const Gap(6),
+                      Text(
+                        "Telegram-библиотека, YouTube Music поиск, локальные альбомы и офлайн-тексты в одном плеере.",
+                        style: theme.typography.normal.copyWith(
+                          color: theme.colorScheme.mutedForeground,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    Button.primary(
+                      onPressed: () => context.navigateTo(const SearchRoute()),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(SpotubeIcons.search),
+                          Gap(8),
+                          Text("Найти трек"),
+                        ],
+                      ),
+                    ),
+                    Button.outline(
+                      onPressed: () => context.navigateTo(const StatsRoute()),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(SpotubeIcons.chart),
+                          Gap(8),
+                          Text("Статистика"),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

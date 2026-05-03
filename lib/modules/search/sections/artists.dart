@@ -17,6 +17,7 @@ class SearchArtistsSection extends HookConsumerWidget {
     final search = ref.watch(metadataPluginSearchAllProvider(searchTerm));
 
     final artists = search.asData?.value.artists ?? [];
+    if (artists.isEmpty) return const SizedBox.shrink();
 
     return HorizontalPlaybuttonCardView(
       isLoadingNextPage: false,

@@ -1,6 +1,7 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
@@ -25,6 +26,7 @@ import 'package:etgmusic/provider/player_equalizer_provider.dart';
 import 'package:etgmusic/provider/sleep_timer_provider.dart';
 import 'package:etgmusic/provider/user_preferences/user_preferences_provider.dart';
 import 'package:etgmusic/provider/volume_provider.dart';
+import 'package:etgmusic/services/share/track_file_share.dart';
 
 class PlayerActions extends HookConsumerWidget {
   final MainAxisAlignment mainAxisAlignment;
@@ -183,11 +185,10 @@ class _PlayerActionsSheet extends HookConsumerWidget {
                   _ActionTile(
                     icon: SpotubeIcons.share,
                     title: "Поделиться",
-                    subtitle: "Скопировать ссылку трека",
-                    onPressed: () {
-                      _copyTrackLink(rootContext, activeTrack);
-                      close();
-                    },
+                    subtitle: "Отправить сам аудиофайл",
+                    onPressed: () => closeThen(() {
+                      unawaited(_shareTrackFile(rootContext, ref, activeTrack));
+                    }),
                   ),
                 if (fullTrack != null &&
                     authenticated.asData?.value == true)
@@ -210,7 +211,14 @@ class _PlayerActionsSheet extends HookConsumerWidget {
                   ),
                 const Gap(8),
                 const _SectionTitle("Звук"),
-                const _EqualizerPanel(),
+                _ActionTile(
+                  icon: SpotubeIcons.audioQuality,
+                  title: "Эквалайзер",
+                  subtitle: "10 полос и быстрый сброс в отдельном окне",
+                  onPressed: () => closeThen(() {
+                    _openEqualizerOverlay(rootContext);
+                  }),
+                ),
                 _SwitchTile(
                   icon: SpotubeIcons.repeat,
                   title: "Плавный переход",
@@ -417,6 +425,51 @@ class _EqualizerPanel extends HookConsumerWidget {
   }
 }
 
+class _EqualizerSheet extends StatelessWidget {
+  final VoidCallback close;
+
+  const _EqualizerSheet({required this.close});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 430),
+        child: SurfaceCard(
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+          borderRadius: BorderRadius.circular(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    "Эквалайзер",
+                    style: theme.typography.large.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton.ghost(
+                    size: ButtonSize.small,
+                    icon: const Icon(SpotubeIcons.close),
+                    onPressed: close,
+                  ),
+                ],
+              ),
+              const Gap(10),
+              const _EqualizerPanel(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SwitchTile extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -604,14 +657,47 @@ void _openSiblingTracks(BuildContext context, bool floatingQueue) {
   }
 }
 
-void _copyTrackLink(BuildContext context, SpotubeTrackObject track) {
-  Clipboard.setData(ClipboardData(text: track.externalUri)).then((_) {
-    if (!context.mounted) return;
+void _openEqualizerOverlay(BuildContext context) {
+  if (MediaQuery.sizeOf(context).mdAndUp) {
+    showDropdown(
+      context: context,
+      builder: (overlayContext) {
+        return _EqualizerSheet(
+          close: () => closeOverlay(overlayContext),
+        );
+      },
+    );
+    return;
+  }
+
+  openSheet(
+    context: context,
+    position: OverlayPosition.bottom,
+    builder: (sheetContext) {
+      return _EqualizerSheet(
+        close: () => closeSheet(sheetContext),
+      );
+    },
+  );
+}
+
+Future<void> _shareTrackFile(
+  BuildContext context,
+  WidgetRef ref,
+  SpotubeTrackObject track,
+) async {
+  try {
+    _showPlainToast(context, "Готовлю файл трека...");
+    final shared = await TrackFileShareService.shareTrack(ref, track);
+    if (!context.mounted || !shared) return;
     _showPlainToast(
       context,
-      context.l10n.copied_to_clipboard(track.externalUri),
+      "Файл передан в меню отправки",
     );
-  });
+  } catch (error) {
+    if (!context.mounted) return;
+    _showPlainToast(context, "Не удалось подготовить файл: $error");
+  }
 }
 
 void _showPlainToast(BuildContext context, String text) {

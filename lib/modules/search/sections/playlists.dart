@@ -16,6 +16,7 @@ class SearchPlaylistsSection extends HookConsumerWidget {
     final playlistsQuery =
         ref.watch(metadataPluginSearchAllProvider(searchTerm));
     final playlists = playlistsQuery.asData?.value.playlists ?? [];
+    if (playlists.isEmpty) return const SizedBox.shrink();
 
     return HorizontalPlaybuttonCardView(
       isLoadingNextPage: false,

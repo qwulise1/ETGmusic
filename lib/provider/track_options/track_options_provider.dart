@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:collection/collection.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show Navigator, TextEditingController;
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
@@ -25,6 +24,7 @@ import 'package:etgmusic/provider/metadata_plugin/library/tracks.dart';
 import 'package:etgmusic/provider/metadata_plugin/metadata_plugin_provider.dart';
 import 'package:etgmusic/provider/metadata_plugin/tracks/playlist.dart';
 import 'package:etgmusic/services/metadata/errors/exceptions.dart';
+import 'package:etgmusic/services/share/track_file_share.dart';
 import 'package:etgmusic/services/telegram/telegram_media.dart';
 
 enum TrackOptionValue {
@@ -61,23 +61,33 @@ class TrackOptionsActions {
 
   bool get isTelegramTrack => track.id.startsWith("telegram:");
 
-  void actionShare(BuildContext context) {
-    Clipboard.setData(ClipboardData(text: track.externalUri)).then((_) {
-      if (context.mounted) {
-        showToast(
-          context: rootNavigatorKey.currentContext!,
-          location: ToastLocation.topRight,
-          builder: (context, overlay) {
-            return SurfaceCard(
-              child: Text(
-                context.l10n.copied_to_clipboard(track.externalUri),
-                textAlign: TextAlign.center,
-              ),
-            );
-          },
-        );
-      }
-    });
+  Future<void> actionShare(BuildContext context) async {
+    try {
+      showToast(
+        context: rootNavigatorKey.currentContext!,
+        location: ToastLocation.topRight,
+        builder: (context, overlay) {
+          return const SurfaceCard(
+            child: Text("Готовлю файл трека..."),
+          );
+        },
+      );
+      await TrackFileShareService.shareTrack(ref, track);
+    } catch (error) {
+      if (!context.mounted) return;
+      showToast(
+        context: rootNavigatorKey.currentContext!,
+        location: ToastLocation.topRight,
+        builder: (context, overlay) {
+          return SurfaceCard(
+            child: Text(
+              "Не удалось подготовить файл: $error",
+              textAlign: TextAlign.center,
+            ),
+          );
+        },
+      );
+    }
   }
 
   Future<void> actionAddToPlaylist(
@@ -336,7 +346,7 @@ class TrackOptionsActions {
         }
         break;
       case TrackOptionValue.share:
-        actionShare(context);
+        await actionShare(context);
         break;
       case TrackOptionValue.details:
         if (track is! SpotubeFullTrackObject) break;

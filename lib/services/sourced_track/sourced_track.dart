@@ -84,10 +84,15 @@ class SourcedTrack extends BasicSourcedTrack {
       );
     }
 
+    final nativeYoutubeMatch = _nativeYoutubeMatchFromTrack(query);
     final audioSource = await ref.read(audioSourcePluginProvider.future);
     final audioSourceConfig = await ref.read(metadataPluginsProvider
         .selectAsync((data) => data.defaultAudioSourcePluginConfig));
-    final sourceType = audioSourceConfig?.slug ?? _nativeYoutubeSourceType;
+    final sourceType = nativeYoutubeMatch == null
+        ? audioSourceConfig?.slug ?? _nativeYoutubeSourceType
+        : _nativeYoutubeSourceType;
+    final effectiveAudioSource =
+        sourceType == _nativeYoutubeSourceType ? null : audioSource;
 
     final database = ref.read(databaseProvider);
     final cachedSource = await (database.select(database.sourceMatchTable)
@@ -103,7 +108,12 @@ class SourcedTrack extends BasicSourcedTrack {
         .then((s) => s.firstOrNull);
 
     if (cachedSource == null) {
-      final siblings = await fetchSiblings(ref: ref, query: query);
+      final siblings = nativeYoutubeMatch == null
+          ? await fetchSiblings(ref: ref, query: query)
+          : [
+              nativeYoutubeMatch,
+              ...await fetchSiblings(ref: ref, query: query),
+            ];
       if (siblings.isEmpty) {
         throw TrackNotFoundError(query);
       }
@@ -116,11 +126,15 @@ class SourcedTrack extends BasicSourcedTrack {
             ),
           );
 
-      final manifest = await _streamsForMatch(ref, siblings.first, audioSource);
+      final manifest =
+          await _streamsForMatch(ref, siblings.first, effectiveAudioSource);
 
       return SourcedTrack(
         ref: ref,
-        siblings: siblings.skip(1).toList(),
+        siblings: siblings
+            .skip(1)
+            .where((source) => source.id != siblings.first.id)
+            .toList(),
         info: siblings.first,
         source: sourceType,
         sources: manifest,
@@ -141,7 +155,19 @@ class SourcedTrack extends BasicSourcedTrack {
       return fetchFromTrack(query: query, ref: ref);
     }
 
-    final manifest = await _streamsForMatch(ref, item, audioSource);
+    late final List<SpotubeAudioSourceStreamObject> manifest;
+    try {
+      manifest = await _streamsForMatch(ref, item, effectiveAudioSource);
+    } catch (_) {
+      await (database.sourceMatchTable.delete()
+            ..where(
+              (table) =>
+                  table.trackId.equals(query.id) &
+                  table.sourceType.equals(sourceType),
+            ))
+          .go();
+      return fetchFromTrack(query: query, ref: ref);
+    }
 
     final sourcedTrack = SourcedTrack(
       ref: ref,
@@ -236,10 +262,12 @@ class SourcedTrack extends BasicSourcedTrack {
     required Ref ref,
   }) async {
     final audioSource = await ref.read(audioSourcePluginProvider.future);
+    final nativeYoutubeMatch = _nativeYoutubeMatchFromTrack(query);
 
     final searchResults = await _safePluginMatches(audioSource, query);
     final fallbackResults = await _nativeYoutubeMatches(ref, query);
     final combinedResults = [
+      if (nativeYoutubeMatch != null) nativeYoutubeMatch,
       ...searchResults,
       ...fallbackResults,
     ];
@@ -262,7 +290,13 @@ class SourcedTrack extends BasicSourcedTrack {
         )
         .toList();
 
-    return rankedResults.take(12).toSet().toList();
+    return rankedResults
+        .whereIndexed((index, source) {
+          return rankedResults.indexWhere((item) => item.id == source.id) ==
+              index;
+        })
+        .take(12)
+        .toList();
   }
 
   Future<SourcedTrack> copyWithSibling() async {
@@ -291,7 +325,11 @@ class SourcedTrack extends BasicSourcedTrack {
     final audioSource = await ref.read(audioSourcePluginProvider.future);
     final audioSourceConfig = await ref.read(metadataPluginsProvider
         .selectAsync((data) => data.defaultAudioSourcePluginConfig));
-    final sourceType = audioSourceConfig?.slug ?? _nativeYoutubeSourceType;
+    final sourceType = source == _nativeYoutubeSourceType
+        ? _nativeYoutubeSourceType
+        : audioSourceConfig?.slug ?? _nativeYoutubeSourceType;
+    final effectiveAudioSource =
+        sourceType == _nativeYoutubeSourceType ? null : audioSource;
 
     // a sibling source that was fetched from the search results
     final isStepSibling = siblings.none((s) => s.id == sibling.id);
@@ -303,7 +341,8 @@ class SourcedTrack extends BasicSourcedTrack {
     final newSiblings = siblings.where((s) => s.id != sibling.id).toList()
       ..insert(0, info);
 
-    final manifest = await _streamsForMatch(ref, newSourceInfo, audioSource);
+    final manifest =
+        await _streamsForMatch(ref, newSourceInfo, effectiveAudioSource);
 
     final database = ref.read(databaseProvider);
 
@@ -346,7 +385,9 @@ class SourcedTrack extends BasicSourcedTrack {
     }
 
     final audioSource = await ref.read(audioSourcePluginProvider.future);
-    if (audioSource == null && source != _nativeYoutubeSourceType) {
+    final effectiveAudioSource =
+        source == _nativeYoutubeSourceType ? null : audioSource;
+    if (effectiveAudioSource == null && source != _nativeYoutubeSourceType) {
       throw MetadataPluginException.noDefaultAudioSourcePlugin();
     }
 
@@ -372,7 +413,7 @@ class SourcedTrack extends BasicSourcedTrack {
     AppLogger.log.d(stringBuffer.toString());
 
     if (validStreams.isEmpty) {
-      validStreams = await _streamsForMatch(ref, info, audioSource);
+      validStreams = await _streamsForMatch(ref, info, effectiveAudioSource);
     }
 
     final sourcedTrack = SourcedTrack(
@@ -511,6 +552,40 @@ Future<List<SpotubeAudioSourceMatchObject>> _nativeYoutubeMatches(
     AppLogger.reportError(error, stackTrace);
     return const [];
   }
+}
+
+SpotubeAudioSourceMatchObject? _nativeYoutubeMatchFromTrack(
+  SpotubeFullTrackObject query,
+) {
+  final videoId = _youtubeTrackVideoId(query);
+  if (videoId == null || videoId.isEmpty) return null;
+  return SpotubeAudioSourceMatchObject(
+    id: videoId,
+    title: query.name,
+    artists: query.artists.map((artist) => artist.name).toList(),
+    duration: Duration(milliseconds: query.durationMs),
+    thumbnail: (query.album.images).asUrlString(
+      placeholder: ImagePlaceholder.albumArt,
+      index: 0,
+    ),
+    externalUri: "https://music.youtube.com/watch?v=$videoId",
+  );
+}
+
+String? _youtubeTrackVideoId(SpotubeFullTrackObject query) {
+  if (query.id.startsWith("youtube:")) {
+    return query.id.substring("youtube:".length);
+  }
+
+  final uri = Uri.tryParse(query.externalUri);
+  if (uri == null) return null;
+  if (!uri.host.contains("youtube.com") && !uri.host.contains("youtu.be")) {
+    return null;
+  }
+  if (uri.host.contains("youtu.be")) {
+    return uri.pathSegments.firstOrNull;
+  }
+  return uri.queryParameters["v"];
 }
 
 Future<List<SpotubeAudioSourceStreamObject>> _streamsForMatch(
