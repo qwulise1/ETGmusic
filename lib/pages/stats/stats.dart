@@ -56,44 +56,62 @@ class _StatsHeader extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
-      child: SurfaceCard(
-        padding: const EdgeInsets.all(18),
-        borderRadius: BorderRadius.circular(28),
-        child: Row(
-          children: [
-            Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: theme.colorScheme.primary.withValues(alpha: 0.18),
-              ),
-              child: const Icon(SpotubeIcons.chart, size: 26),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                theme.colorScheme.secondary.withValues(alpha: 0.22),
+                theme.colorScheme.primary.withValues(alpha: 0.14),
+                theme.colorScheme.card.withValues(alpha: 0.96),
+              ],
             ),
-            const Gap(14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    "Твоя статистика",
-                    style: theme.typography.h3.copyWith(
-                      fontWeight: FontWeight.w900,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: theme.colorScheme.background.withValues(alpha: 0.62),
+                    border: Border.all(
+                      color: theme.colorScheme.border.withValues(alpha: 0.45),
                     ),
                   ),
-                  const Gap(4),
-                  Text(
-                    "Прослушивания, любимые артисты, альбомы и динамика активности.",
-                    style: theme.typography.small.copyWith(
-                      color: theme.colorScheme.mutedForeground,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  child: const Icon(SpotubeIcons.chart, size: 26),
+                ),
+                const Gap(14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        "Статистика",
+                        style: theme.typography.h3.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const Gap(4),
+                      Text(
+                        "Сводка прослушиваний, любимые артисты, альбомы и активность без лишнего шума.",
+                        style: theme.typography.small.copyWith(
+                          color: theme.colorScheme.mutedForeground,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

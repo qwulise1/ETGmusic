@@ -1289,7 +1289,8 @@ SpotubeFullTrackObject _youtubeVideoToTrack(dynamic video) {
       albumType: SpotubeAlbumType.single,
       releaseDate: DateTime.now().year.toString(),
     ),
-    durationMs: _videoDuration(video)?.inMilliseconds ?? 0,
+    durationMs:
+        (_videoDuration(video) ?? const Duration(minutes: 3)).inMilliseconds,
     isrc: "",
     explicit: false,
   ) as SpotubeFullTrackObject;

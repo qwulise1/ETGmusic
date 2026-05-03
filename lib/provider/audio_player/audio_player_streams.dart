@@ -146,13 +146,13 @@ class AudioPlayerStreamListeners {
             activeTrackId != null &&
             lastCrossfadedTrack != activeTrackId &&
             audioPlayer.duration > const Duration(seconds: 12) &&
-            audioPlayer.duration - event <= const Duration(milliseconds: 2300) &&
+            audioPlayer.duration - event <= const Duration(milliseconds: 3600) &&
             audioPlayerState.currentIndex != -1 &&
             audioPlayerState.currentIndex < audioPlayerState.tracks.length - 1;
 
         if (canCrossfade) {
           lastCrossfadedTrack = activeTrackId;
-          await audioPlayer.smoothSkipToNext();
+          await audioPlayer.smoothSkipToNext(automatic: true);
           return;
         }
 

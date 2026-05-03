@@ -15,6 +15,7 @@ import 'package:etgmusic/models/parser/range_headers.dart';
 import 'package:etgmusic/provider/audio_player/audio_player.dart';
 import 'package:etgmusic/provider/audio_player/state.dart';
 
+import 'package:etgmusic/provider/metadata_plugin/audio_source/quality_presets.dart';
 import 'package:etgmusic/provider/server/active_track_sources.dart';
 import 'package:etgmusic/provider/server/sourced_track_provider.dart';
 import 'package:etgmusic/provider/user_preferences/user_preferences_provider.dart';
@@ -64,11 +65,68 @@ class ServerPlaybackRoutes {
 
   ServerPlaybackRoutes(this.ref) : dio = Dio();
 
+  bool _isNativeYoutubeTrack(SourcedTrack track) {
+    return track.source == "native-youtube" ||
+        track.query.id.startsWith("youtube:");
+  }
+
+  String _contentTypeFromSourcedTrack(SourcedTrack track) {
+    final container =
+        track.sources.isEmpty ? "mp4" : track.sources.first.container;
+    return "audio/${track.qualityPreset?.name ?? container}";
+  }
+
+  Options _remoteStreamOptions(
+    String url, {
+    Map<String, dynamic> headers = const {},
+    ResponseType responseType = ResponseType.stream,
+  }) {
+    return Options(
+      headers: {
+        ...headers,
+        "user-agent": _randomUserAgent,
+        "Cache-Control": "max-age=3600",
+        "Connection": "keep-alive",
+        "host": Uri.parse(url).host,
+      },
+      responseType: responseType,
+      validateStatus: (status) => status != null && status < 400,
+    );
+  }
+
+  dio_lib.Response _optimisticYoutubeHead(Request request, SourcedTrack track) {
+    final presets = ref.read(audioSourcePresetsProvider);
+    final preset = presets.selectedStreamingContainerIndex <
+            presets.presets.length
+        ? presets.presets[presets.selectedStreamingContainerIndex]
+        : null;
+    final stream = preset == null
+        ? null
+        : track.getStreamOfQuality(
+            preset,
+            presets.selectedStreamingQualityIndex < preset.qualities.length
+                ? presets.selectedStreamingQualityIndex
+                : 0,
+          );
+
+    return dio_lib.Response(
+      statusCode: 200,
+      headers: Headers.fromMap({
+        "content-type": ["audio/${stream?.container ?? "mp4"}"],
+        "accept-ranges": ["bytes"],
+        "connection": ["keep-alive"],
+      }),
+      requestOptions: RequestOptions(path: request.requestedUri.toString()),
+    );
+  }
+
   Future<String> _getTrackCacheFilePath(SourcedTrack track) async {
+    final extension = track.qualityPreset?.getFileExtension() ??
+        (track.sources.isEmpty ? "m4a" : track.sources.first.container);
     return join(
       await UserPreferencesNotifier.getMusicCacheDir(),
       ServiceUtils.sanitizeFilename(
-        '${track.query.name} - ${track.query.artists.map((d) => d.name).join(",")} (${track.info.id}).${track.qualityPreset!.getFileExtension()}',
+        '${track.query.name} - ${track.query.artists.map((d) => d.name).join(",")} (${track.info.id}).$extension',
       ),
     );
   }
@@ -77,8 +135,9 @@ class ServerPlaybackRoutes {
     Request request,
     String trackId,
   ) async {
+    final decodedTrackId = Uri.decodeComponent(trackId);
     final track =
-        playlist.tracks.firstWhere((element) => element.id == trackId);
+        playlist.tracks.firstWhere((element) => element.id == decodedTrackId);
 
     final activeSourcedTrack =
         await ref.read(activeTrackSourcesProvider.future);
@@ -129,7 +188,7 @@ class ServerPlaybackRoutes {
       return dio_lib.Response(
         statusCode: 200,
         headers: Headers.fromMap({
-          "content-type": ["audio/${track.qualityPreset!.name}"],
+          "content-type": [_contentTypeFromSourcedTrack(track)],
           "content-length": ["$fileLength"],
           "accept-ranges": ["bytes"],
           "content-range": ["bytes 0-$fileLength/$fileLength"],
@@ -144,17 +203,28 @@ class ServerPlaybackRoutes {
             .swapWithNextSibling()
             .then((track) => track.url!);
 
-    final options = Options(
-      headers: {
-        "user-agent": _randomUserAgent,
-        "Cache-Control": "max-age=3600",
-        "Connection": "keep-alive",
-        "host": Uri.parse(url).host,
-      },
-      validateStatus: (status) => status! < 400,
-    );
+    if (_isNativeYoutubeTrack(track)) {
+      try {
+        return await dio.head(
+          url,
+          options: _remoteStreamOptions(
+            url,
+            responseType: ResponseType.bytes,
+          ),
+        );
+      } catch (error, stack) {
+        AppLogger.reportError(error, stack);
+        return _optimisticYoutubeHead(request, track);
+      }
+    }
 
-    final res = await dio.head(url, options: options);
+    final res = await dio.head(
+      url,
+      options: _remoteStreamOptions(
+        url,
+        responseType: ResponseType.bytes,
+      ),
+    );
 
     return res;
   }
@@ -196,7 +266,7 @@ class ServerPlaybackRoutes {
       return dio_lib.Response<Uint8List>(
         statusCode: 200,
         headers: Headers.fromMap({
-          "content-type": ["audio/${track.qualityPreset!.name}"],
+          "content-type": [_contentTypeFromSourcedTrack(track)],
           "content-length": ["${cachedFileLength - 1}"],
           "accept-ranges": ["bytes"],
           "content-range": [
@@ -215,34 +285,36 @@ class ServerPlaybackRoutes {
             .swapWithNextSibling()
             .then((track) => track.url!);
 
-    final options = Options(
-      headers: {
-        ...headers,
-        "user-agent": _randomUserAgent,
-        "Cache-Control": "max-age=3600",
-        "Connection": "keep-alive",
-        "host": Uri.parse(url).host,
-      },
-      responseType: ResponseType.stream,
-      validateStatus: (status) => status! < 400,
-    );
+    final shouldProbeBeforeGet = !_isNativeYoutubeTrack(track);
+    final contentLengthRes = shouldProbeBeforeGet
+        ? await Future<dio_lib.Response?>.value(
+            dio.head(
+              url,
+              options: _remoteStreamOptions(
+                url,
+                headers: headers,
+                responseType: ResponseType.bytes,
+              ),
+            ),
+          ).catchError((e, stack) async {
+            AppLogger.reportError(e, stack);
 
-    final contentLengthRes = await Future<dio_lib.Response?>.value(
-      dio.head(
-        url,
-        options: options.copyWith(responseType: ResponseType.bytes),
-      ),
-    ).catchError((e, stack) async {
-      AppLogger.reportError(e, stack);
+            final sourcedTrack = await ref
+                .read(sourcedTrackProvider(track.query).notifier)
+                .refreshStreamingUrl();
 
-      final sourcedTrack = await ref
-          .read(sourcedTrackProvider(track.query).notifier)
-          .refreshStreamingUrl();
+            url = sourcedTrack.url!;
 
-      url = sourcedTrack.url!;
-
-      return dio.head(url, options: options);
-    });
+            return dio.head(
+              url,
+              options: _remoteStreamOptions(
+                url,
+                headers: headers,
+                responseType: ResponseType.bytes,
+              ),
+            );
+          })
+        : null;
 
     // Redirect to m3u8 link directly as it handles range requests internally
     if (contentLengthRes?.headers.value("content-type") ==
@@ -259,7 +331,23 @@ class ServerPlaybackRoutes {
       );
     }
 
-    final res = await dio.get<ResponseBody>(url, options: options);
+    late final dio_lib.Response<ResponseBody> res;
+    try {
+      res = await dio.get<ResponseBody>(
+        url,
+        options: _remoteStreamOptions(url, headers: headers),
+      );
+    } catch (e, stack) {
+      AppLogger.reportError(e, stack);
+      final sourcedTrack = await ref
+          .read(sourcedTrackProvider(track.query).notifier)
+          .refreshStreamingUrl();
+      url = sourcedTrack.url!;
+      res = await dio.get<ResponseBody>(
+        url,
+        options: _remoteStreamOptions(url, headers: headers),
+      );
+    }
 
     AppLogger.log.i(
       "Response for track: ${track.query.name}\n"
@@ -300,7 +388,9 @@ class ServerPlaybackRoutes {
 
         await trackPartialCacheFile.rename(trackCacheFile.path);
 
-        if (track.qualityPreset!.getFileExtension() == "weba") return;
+        final extension = track.qualityPreset?.getFileExtension() ??
+            (track.sources.isEmpty ? "" : track.sources.first.container);
+        if (extension == "weba" || extension == "webm") return;
 
         final imageBytes = await ServiceUtils.downloadImage(
           track.query.album.images.asUrlString(

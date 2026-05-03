@@ -188,39 +188,42 @@ class SearchPage extends HookConsumerWidget {
                     ),
                   ],
                 ),
-                Row(
-                  spacing: 8,
-                  children: [
-                    const Gap(12),
-                    for (final chip in chips)
-                        Chip(
-                          style: selectedChip.value == chip
-                              ? ButtonVariance.primary.copyWith(
-                                  decoration: (context, states, value) {
-                                    return ButtonVariance.primary
-                                        .decoration(context, states)
-                                        .copyWithIfBoxDecoration(
-                                          borderRadius:
-                                              BorderRadius.circular(100),
-                                        );
-                                  },
-                                )
-                              : ButtonVariance.secondary.copyWith(
-                                  decoration: (context, states, value) {
-                                    return ButtonVariance.secondary
-                                        .decoration(context, states)
-                                        .copyWithIfBoxDecoration(
-                                          borderRadius:
-                                              BorderRadius.circular(100),
-                                        );
-                                  },
-                                ),
-                          child: Text(_chipLabel(chip.toString())),
-                          onPressed: () {
-                            selectedChip.value = chip;
-                          },
-                        ),
-                  ],
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                  child: Row(
+                    spacing: 8,
+                    children: [
+                      for (final chip in chips)
+                          Chip(
+                            style: selectedChip.value == chip
+                                ? ButtonVariance.primary.copyWith(
+                                    decoration: (context, states, value) {
+                                      return ButtonVariance.primary
+                                          .decoration(context, states)
+                                          .copyWithIfBoxDecoration(
+                                            borderRadius:
+                                                BorderRadius.circular(100),
+                                          );
+                                    },
+                                  )
+                                : ButtonVariance.secondary.copyWith(
+                                    decoration: (context, states, value) {
+                                      return ButtonVariance.secondary
+                                          .decoration(context, states)
+                                          .copyWithIfBoxDecoration(
+                                            borderRadius:
+                                                BorderRadius.circular(100),
+                                          );
+                                    },
+                                  ),
+                            child: Text(_chipLabel(chip.toString())),
+                            onPressed: () {
+                              selectedChip.value = chip;
+                            },
+                          ),
+                    ],
+                  ),
                 ),
                 Expanded(
                   child: AnimatedSwitcher(

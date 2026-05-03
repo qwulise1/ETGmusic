@@ -19,6 +19,10 @@ class SearchPageAllTab extends HookConsumerWidget {
     final searchTerm = ref.watch(searchTermStateProvider);
     final searchSnapshot =
         ref.watch(metadataPluginSearchAllProvider(searchTerm));
+    final result = searchSnapshot.asData?.value;
+    final hasPlaylists = result?.playlists.isNotEmpty == true;
+    final hasArtists = result?.artists.isNotEmpty == true;
+    final hasAlbums = result?.albums.isNotEmpty == true;
 
     if (searchSnapshot.hasError) {
       return ErrorBox(
@@ -35,18 +39,22 @@ class SearchPageAllTab extends HookConsumerWidget {
         controller: scrollController,
         child: SingleChildScrollView(
           controller: scrollController,
-          child: const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
             child: SafeArea(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SearchTracksSection(),
-                  SearchPlaylistsSection(),
-                  Gap(20),
-                  SearchArtistsSection(),
-                  Gap(20),
-                  SearchAlbumsSection(),
+                  const SearchTracksSection(),
+                  if (hasPlaylists) ...[
+                    const SearchPlaylistsSection(),
+                    const Gap(20),
+                  ],
+                  if (hasArtists) ...[
+                    const SearchArtistsSection(),
+                    const Gap(20),
+                  ],
+                  if (hasAlbums) const SearchAlbumsSection(),
                 ],
               ),
             ),

@@ -4,6 +4,8 @@ final audioPlayer = SpotubeAudioPlayer();
 
 class SpotubeAudioPlayer extends AudioPlayerInterface
     with SpotubeAudioPlayersStreams {
+  bool _transitioning = false;
+
   Future<void> pause() async {
     await _mkPlayer.pause();
   }
@@ -26,29 +28,61 @@ class SpotubeAudioPlayer extends AudioPlayerInterface
     await _mkPlayer.setVolume(volume * 100);
   }
 
-  Future<void> _fadeAround(Future<void> Function() action) async {
+  double _easeInOut(double t) {
+    return (t < 0.5 ? 4 * t * t * t : 1 - pow(-2 * t + 2, 3) / 2)
+        .toDouble();
+  }
+
+  Future<void> _fadeTo(double target, Duration duration) async {
+    final from = volume;
+    final steps = max(8, duration.inMilliseconds ~/ 34);
+    for (var i = 1; i <= steps; i++) {
+      final t = _easeInOut(i / steps);
+      await setVolume(from + (target - from) * t);
+      await Future.delayed(
+        Duration(milliseconds: duration.inMilliseconds ~/ steps),
+      );
+    }
+  }
+
+  Future<void> _fadeAround(
+    Future<void> Function() action, {
+    Duration fadeOut = const Duration(milliseconds: 820),
+    Duration fadeIn = const Duration(milliseconds: 920),
+  }) async {
+    if (_transitioning) {
+      await action();
+      return;
+    }
+
     final targetVolume = volume;
     if (targetVolume <= 0) {
       await action();
       return;
     }
 
-    const steps = 14;
-    const stepDelay = Duration(milliseconds: 46);
-    for (var i = steps; i >= 0; i--) {
-      await setVolume(targetVolume * (i / steps));
-      await Future.delayed(stepDelay);
-    }
-    await action();
-    await Future.delayed(const Duration(milliseconds: 120));
-    for (var i = 0; i <= steps; i++) {
-      await setVolume(targetVolume * (i / steps));
-      await Future.delayed(stepDelay);
+    _transitioning = true;
+    try {
+      await _fadeTo(0.035, fadeOut);
+      await action();
+      await Future.delayed(const Duration(milliseconds: 70));
+      await _fadeTo(targetVolume, fadeIn);
+    } finally {
+      await setVolume(targetVolume);
+      _transitioning = false;
     }
   }
 
-  Future<void> smoothSkipToNext() async {
-    await _fadeAround(skipToNext);
+  Future<void> smoothSkipToNext({bool automatic = false}) async {
+    await _fadeAround(
+      skipToNext,
+      fadeOut: automatic
+          ? const Duration(milliseconds: 1550)
+          : const Duration(milliseconds: 720),
+      fadeIn: automatic
+          ? const Duration(milliseconds: 1700)
+          : const Duration(milliseconds: 820),
+    );
   }
 
   Future<void> smoothSkipToPrevious() async {

@@ -25,10 +25,14 @@ class CustomPlayer extends Player {
   AndroidAudioManager? _androidAudioManager;
   bool _audioNormalization = false;
   List<double> _equalizerBands = List<double>.filled(10, 0);
+  String? _lastAudioFilterGraph;
 
   CustomPlayer({super.configuration})
       : _playerStateStream = StreamController.broadcast() {
     nativePlayer.setProperty("network-timeout", "120");
+    nativePlayer.setProperty("gapless-audio", "yes");
+    nativePlayer.setProperty("prefetch-playlist", "yes");
+    nativePlayer.setProperty("audio-buffer", "1.5");
 
     _subscriptions = [
       stream.buffering.listen((event) {
@@ -176,7 +180,10 @@ class CustomPlayer extends Player {
       );
     }
 
-    await nativePlayer.setProperty('af', filters.join(','));
+    final filterGraph = filters.join(',');
+    if (filterGraph == _lastAudioFilterGraph) return;
+    _lastAudioFilterGraph = filterGraph;
+    await nativePlayer.setProperty('af', filterGraph);
   }
 
   Future<bool> openAudioEffectPanel() async {

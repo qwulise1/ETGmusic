@@ -406,6 +406,13 @@ class _EqualizerPanel extends HookConsumerWidget {
                       onChanged: (value) {
                         notifier.setBand(i, value.value);
                       },
+                      onChangeEnd: (value) {
+                        notifier.setBand(
+                          i,
+                          value.value,
+                          applyImmediately: true,
+                        );
+                      },
                     ),
                   ),
                   SizedBox(
@@ -592,13 +599,19 @@ void _openPlayerActionsOverlay(
     return;
   }
 
-  openSheet(
+  openDrawer(
     context: context,
     position: OverlayPosition.bottom,
+    draggable: true,
+    showDragHandle: false,
+    transformBackdrop: false,
+    surfaceBlur: 0,
+    surfaceOpacity: 1,
+    borderRadius: BorderRadius.circular(28),
     builder: (sheetContext) {
       return _PlayerActionsSheet(
         rootContext: context,
-        close: () => closeSheet(sheetContext),
+        close: () => closeDrawer(sheetContext),
         floatingQueue: floatingQueue,
       );
     },
@@ -670,12 +683,18 @@ void _openEqualizerOverlay(BuildContext context) {
     return;
   }
 
-  openSheet(
+  openDrawer(
     context: context,
     position: OverlayPosition.bottom,
+    draggable: true,
+    showDragHandle: false,
+    transformBackdrop: false,
+    surfaceBlur: 0,
+    surfaceOpacity: 1,
+    borderRadius: BorderRadius.circular(28),
     builder: (sheetContext) {
       return _EqualizerSheet(
-        close: () => closeSheet(sheetContext),
+        close: () => closeDrawer(sheetContext),
       );
     },
   );

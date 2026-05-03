@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:media_kit/media_kit.dart' hide Track;
 import 'package:etgmusic/models/metadata/metadata.dart';
@@ -19,7 +20,7 @@ class SpotubeMedia extends mk.Media {
   static int serverPort = 0;
 
   static String get _host =>
-      kIsWindows ? "localhost" : InternetAddress.anyIPv4.address;
+      kIsWindows ? "localhost" : InternetAddress.loopbackIPv4.address;
 
   final SpotubeTrackObject track;
   SpotubeMedia(this.track)
@@ -31,7 +32,7 @@ class SpotubeMedia extends mk.Media {
         super(
           track is SpotubeLocalTrackObject
               ? track.path
-              : "http://$_host:$serverPort/stream/${track.id}",
+              : "http://$_host:$serverPort/stream/${Uri.encodeComponent(track.id)}",
           extras: track.toJson(),
         );
 

@@ -241,6 +241,11 @@ class SourcedTrack extends BasicSourcedTrack {
     SpotubeAudioSourceMatchObject sibling,
     SpotubeFullTrackObject track,
   ) {
+    final nativeVideoId = _youtubeTrackVideoId(track);
+    if (nativeVideoId != null && nativeVideoId == _youtubeIdFromMatch(sibling)) {
+      return true;
+    }
+
     if (sibling.duration <= Duration.zero) return false;
     if (sibling.duration > const Duration(minutes: 18)) return false;
 
@@ -436,10 +441,25 @@ class SourcedTrack extends BasicSourcedTrack {
     }
 
     final preferences = ref.read(audioSourcePresetsProvider);
+    if (preferences.presets.isEmpty) {
+      final sortedSources = [...sources]
+        ..sort((a, b) => (a.bitrate ?? 0).compareTo(b.bitrate ?? 0));
+      return sortedSources.lastOrNull?.url ?? sources.firstOrNull?.url;
+    }
+
+    final containerIndex =
+        preferences.selectedStreamingContainerIndex < preferences.presets.length
+            ? preferences.selectedStreamingContainerIndex
+            : 0;
+    final preset = preferences.presets[containerIndex];
+    final qualityIndex =
+        preferences.selectedStreamingQualityIndex < preset.qualities.length
+            ? preferences.selectedStreamingQualityIndex
+            : 0;
 
     return getUrlOfQuality(
-      preferences.presets[preferences.selectedStreamingContainerIndex],
-      preferences.selectedStreamingQualityIndex,
+      preset,
+      qualityIndex,
     );
   }
 
@@ -454,8 +474,11 @@ class SourcedTrack extends BasicSourcedTrack {
     int qualityIndex,
   ) {
     if (sources.isEmpty) return null;
+    if (preset.qualities.isEmpty) return sources.firstOrNull;
 
-    final quality = preset.qualities[qualityIndex];
+    final quality = preset.qualities[
+      qualityIndex < preset.qualities.length ? qualityIndex : 0
+    ];
 
     final exactMatch = sources.firstWhereOrNull(
       (source) {
@@ -512,6 +535,7 @@ class SourcedTrack extends BasicSourcedTrack {
 
   SpotubeAudioSourceContainerPreset? get qualityPreset {
     final presetState = ref.read(audioSourcePresetsProvider);
+    if (presetState.presets.isEmpty) return null;
     return presetState.presets
         .elementAtOrNull(presetState.selectedStreamingContainerIndex);
   }
@@ -563,7 +587,9 @@ SpotubeAudioSourceMatchObject? _nativeYoutubeMatchFromTrack(
     id: videoId,
     title: query.name,
     artists: query.artists.map((artist) => artist.name).toList(),
-    duration: Duration(milliseconds: query.durationMs),
+    duration: query.durationMs > 0
+        ? Duration(milliseconds: query.durationMs)
+        : const Duration(minutes: 3),
     thumbnail: (query.album.images).asUrlString(
       placeholder: ImagePlaceholder.albumArt,
       index: 0,

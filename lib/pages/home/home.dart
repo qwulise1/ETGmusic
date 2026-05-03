@@ -96,87 +96,165 @@ class _HomeHero extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 16),
-      child: SurfaceCard(
-        padding: const EdgeInsets.all(18),
-        borderRadius: BorderRadius.circular(30),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(32),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                theme.colorScheme.primary.withValues(alpha: 0.28),
-                theme.colorScheme.secondary.withValues(alpha: 0.14),
-                theme.colorScheme.background.withValues(alpha: 0.04),
+                theme.colorScheme.primary.withValues(alpha: 0.26),
+                theme.colorScheme.secondary.withValues(alpha: 0.16),
+                theme.colorScheme.card.withValues(alpha: 0.94),
               ],
             ),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Wrap(
-              spacing: 14,
-              runSpacing: 14,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              alignment: WrapAlignment.spaceBetween,
-              children: [
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        "ETGmusic",
-                        style: theme.typography.h2.copyWith(
-                          fontFamily: "Cookie",
-                          fontSize: 44,
-                          letterSpacing: 1.2,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const Gap(6),
-                      Text(
-                        "Telegram-библиотека, YouTube Music поиск, локальные альбомы и офлайн-тексты в одном плеере.",
-                        style: theme.typography.normal.copyWith(
-                          color: theme.colorScheme.mutedForeground,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
+          child: Stack(
+            children: [
+              Positioned(
+                right: -46,
+                top: -44,
+                child: _HeroOrb(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.18),
+                  size: 150,
                 ),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+              ),
+              Positioned(
+                left: -36,
+                bottom: -52,
+                child: _HeroOrb(
+                  color: theme.colorScheme.secondary.withValues(alpha: 0.16),
+                  size: 130,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(22),
+                child: Wrap(
+                  spacing: 18,
+                  runSpacing: 18,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  alignment: WrapAlignment.spaceBetween,
                   children: [
-                    Button.primary(
-                      onPressed: () => context.navigateTo(const SearchRoute()),
-                      child: const Row(
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 560),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(SpotubeIcons.search),
-                          Gap(8),
-                          Text("Найти трек"),
+                          Text(
+                            "ETGmusic",
+                            style: theme.typography.h2.copyWith(
+                              fontFamily: "Cookie",
+                              fontSize: 48,
+                              letterSpacing: 1.2,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const Gap(6),
+                          Text(
+                            "Telegram, YouTube Music, локальные альбомы, офлайн-тексты и нормальный стриминг в одном месте.",
+                            style: theme.typography.normal.copyWith(
+                              color: theme.colorScheme.mutedForeground,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const Gap(14),
+                          const Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _HeroPill("Telegram"),
+                              _HeroPill("YouTube Music"),
+                              _HeroPill("Offline lyrics"),
+                            ],
+                          ),
                         ],
                       ),
                     ),
-                    Button.outline(
-                      onPressed: () => context.navigateTo(const StatsRoute()),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(SpotubeIcons.chart),
-                          Gap(8),
-                          Text("Статистика"),
-                        ],
-                      ),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        Button.primary(
+                          onPressed: () => context.navigateTo(const SearchRoute()),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(SpotubeIcons.search),
+                              Gap(8),
+                              Text("Найти трек"),
+                            ],
+                          ),
+                        ),
+                        Button.outline(
+                          onPressed: () => context.navigateTo(const StatsRoute()),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(SpotubeIcons.chart),
+                              Gap(8),
+                              Text("Статистика"),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroOrb extends StatelessWidget {
+  final Color color;
+  final double size;
+
+  const _HeroOrb({
+    required this.color,
+    required this.size,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color,
+      ),
+    );
+  }
+}
+
+class _HeroPill extends StatelessWidget {
+  final String text;
+
+  const _HeroPill(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(100),
+        color: theme.colorScheme.background.withValues(alpha: 0.52),
+        border: Border.all(
+          color: theme.colorScheme.border.withValues(alpha: 0.45),
+        ),
+      ),
+      child: Text(
+        text,
+        style: theme.typography.xSmall.copyWith(
+          fontWeight: FontWeight.w800,
+          color: theme.colorScheme.foreground,
         ),
       ),
     );
