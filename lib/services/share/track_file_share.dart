@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mime/mime.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -18,7 +17,7 @@ class TrackFileShareService {
   static const _channel = MethodChannel("io.qwulise1.etgmusic/share");
 
   static Future<String> prepareShareFile(
-    Ref ref,
+    dynamic ref,
     SpotubeTrackObject track,
   ) async {
     if (track is SpotubeLocalTrackObject) {
@@ -71,7 +70,7 @@ class TrackFileShareService {
     return target.path;
   }
 
-  static Future<bool> shareTrack(Ref ref, SpotubeTrackObject track) async {
+  static Future<bool> shareTrack(dynamic ref, SpotubeTrackObject track) async {
     final path = await prepareShareFile(ref, track);
     final mimeType = lookupMimeType(path) ?? "audio/*";
     final title = "${track.name} - ${track.artists.asString()}";
@@ -92,7 +91,7 @@ class TrackFileShareService {
   }
 
   static Future<String?> _findLocalCopy(
-    Ref ref,
+    dynamic ref,
     SpotubeTrackObject track,
   ) async {
     final localTracks = await ref.read(localTracksProvider.future);
@@ -111,7 +110,7 @@ class TrackFileShareService {
   }
 
   static Future<String?> _resolveTelegramFile(
-    Ref ref,
+    dynamic ref,
     SpotubeFullTrackObject track,
   ) async {
     if (!track.id.startsWith("telegram:")) return null;
