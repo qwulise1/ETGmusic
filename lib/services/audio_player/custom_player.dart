@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:etgmusic/services/logger/logger.dart';
+import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:flutter_broadcasts/flutter_broadcasts.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -11,6 +12,10 @@ import 'package:etgmusic/utils/platform.dart';
 /// MediaKit [Player] by default doesn't have a state stream.
 /// This class adds a state stream to the [Player] class.
 class CustomPlayer extends Player {
+  static const _methodChannel = MethodChannel(
+    "io.qwulise1.etgmusic/telegram_sync",
+  );
+
   final StreamController<AudioPlaybackState> _playerStateStream;
 
   late final List<StreamSubscription> _subscriptions;
@@ -146,6 +151,16 @@ class CustomPlayer extends Player {
     } else {
       await nativePlayer.setProperty('af', '');
     }
+  }
+
+  Future<bool> openAudioEffectPanel() async {
+    if (!kIsAndroid) return false;
+    await notifyAudioSessionUpdate(true);
+    return await _methodChannel.invokeMethod<bool>(
+          "openAudioEffects",
+          {"sessionId": _androidAudioSessionId},
+        ) ??
+        false;
   }
 
   Future<void> setDemuxerBufferSize(int sizeInBytes) async {

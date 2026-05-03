@@ -6,6 +6,7 @@ import 'package:etgmusic/models/metadata/metadata.dart';
 import 'package:etgmusic/provider/telegram/telegram_auth.dart';
 import 'package:etgmusic/services/metadata/metadata.dart';
 import 'package:etgmusic/services/telegram/telegram_media.dart';
+import 'package:etgmusic/services/youtube_engine/youtube_engine.dart';
 
 MetadataPlugin createTelegramMetadataPlugin(
   Ref ref,
@@ -30,15 +31,20 @@ MetadataPlugin createTelegramMetadataPlugin(
 
 MetadataPlugin createHybridTelegramMetadataPlugin(
   MetadataPlugin telegram,
-  MetadataPlugin external,
-) {
+  MetadataPlugin external, {
+  YouTubeEngine? youtubeEngine,
+}) {
   return MetadataPlugin.native(
     auth: _HybridAuthEndpoint(telegram.auth, external.auth),
     audioSource: telegram.audioSource,
     album: _HybridAlbumEndpoint(telegram.album, external.album),
     artist: _HybridArtistEndpoint(telegram.artist, external.artist),
     browse: _HybridBrowseEndpoint(external.browse),
-    search: _HybridSearchEndpoint(telegram.search, external.search),
+    search: _HybridSearchEndpoint(
+      telegram.search,
+      external.search,
+      youtubeEngine,
+    ),
     playlist: _HybridPlaylistEndpoint(telegram.playlist, external.playlist),
     track: _HybridTrackEndpoint(telegram.track, external.track),
     user: telegram.user,
@@ -130,8 +136,9 @@ class _HybridBrowseEndpoint {
 class _HybridSearchEndpoint {
   final dynamic telegram;
   final dynamic external;
+  final YouTubeEngine? youtubeEngine;
 
-  _HybridSearchEndpoint(this.telegram, this.external);
+  _HybridSearchEndpoint(this.telegram, this.external, this.youtubeEngine);
 
   List<String> get chips {
     final values = <String>[
@@ -144,7 +151,7 @@ class _HybridSearchEndpoint {
         const [],
       ),
     ];
-    return values.toSet().toList();
+    return {...values, "tracks"}.toList();
   }
 
   Future<SpotubeSearchResponseObject> all(String query) async {
@@ -156,11 +163,13 @@ class _HybridSearchEndpoint {
       () async => await external.all(query) as SpotubeSearchResponseObject,
       _emptySearch(),
     );
+    final youtubeTracks = await _youtubeFallbackTracks(query, maxItems: 8);
 
     return SpotubeSearchResponseObject(
       tracks: _dedupeById([
         ...telegramResult.tracks,
         ...externalResult.tracks,
+        ...youtubeTracks,
       ], (track) => track.id),
       albums: _dedupeById([
         ...telegramResult.albums,
@@ -201,8 +210,16 @@ class _HybridSearchEndpoint {
           .items,
       const <SpotubeFullTrackObject>[],
     );
+    final youtubeItems = await _youtubeFallbackTracks(
+      query,
+      maxItems: fetchLimit,
+    );
     return _paginate(
-      _dedupeById([...telegramItems, ...externalItems], (track) => track.id),
+      _dedupeById([
+        ...telegramItems,
+        ...externalItems,
+        ...youtubeItems,
+      ], (track) => track.id),
       offset: offset,
       limit: limit,
     );
@@ -303,6 +320,29 @@ class _HybridSearchEndpoint {
       offset: offset,
       limit: limit,
     );
+  }
+
+  Future<List<SpotubeFullTrackObject>> _youtubeFallbackTracks(
+    String query, {
+    required int maxItems,
+  }) async {
+    final engine = youtubeEngine;
+    final normalized = query.trim();
+    if (engine == null || normalized.isEmpty) {
+      return const <SpotubeFullTrackObject>[];
+    }
+
+    final videos = await _safeFuture<List<dynamic>>(
+      () async =>
+          (await engine.searchVideos("$normalized audio")).cast<dynamic>(),
+      const <dynamic>[],
+    );
+
+    return videos
+        .where((video) => _isSearchableMusicVideo(video, normalized))
+        .map(_youtubeVideoToTrack)
+        .take(maxItems)
+        .toList();
   }
 }
 
@@ -1162,6 +1202,128 @@ SpotubeSearchResponseObject _emptySearch() {
     playlists: const [],
     tracks: const [],
   );
+}
+
+bool _isSearchableMusicVideo(dynamic video, String query) {
+  final duration = _videoDuration(video);
+  if (duration == null ||
+      duration < const Duration(seconds: 35) ||
+      duration > const Duration(minutes: 18)) {
+    return false;
+  }
+
+  final title = _normalizeText(_videoTitle(video));
+  final normalizedQuery = _normalizeText(query);
+  final queryTokens = normalizedQuery
+      .split(RegExp(r"\s+"))
+      .where((token) => token.length > 2)
+      .toList();
+  if (queryTokens.isEmpty) return true;
+
+  final matched = queryTokens.where(title.contains).length;
+  return matched >= (queryTokens.length == 1 ? 1 : 2) ||
+      title.contains("music") ||
+      title.contains("audio") ||
+      title.contains("lyric");
+}
+
+SpotubeFullTrackObject _youtubeVideoToTrack(dynamic video) {
+  final videoId = _videoId(video);
+  final rawTitle = _videoTitle(video);
+  final author = _videoAuthor(video);
+  final parsed = _splitVideoTitle(rawTitle, author);
+  final artist = SpotubeSimpleArtistObject(
+    id: "youtube:artist:${parsed.artist}",
+    name: parsed.artist,
+    externalUri: "https://music.youtube.com/search?q=${Uri.encodeComponent(
+      parsed.artist,
+    )}",
+  );
+
+  return SpotubeTrackObject.full(
+    id: "youtube:$videoId",
+    name: parsed.title,
+    externalUri: _videoExternalUri(videoId),
+    artists: [artist],
+    album: SpotubeSimpleAlbumObject(
+      id: "youtube:album:$videoId",
+      name: "YouTube Music",
+      externalUri: _videoExternalUri(videoId),
+      artists: [artist],
+      images: [
+        SpotubeImageObject(
+          url: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+          height: 480,
+          width: 480,
+        ),
+      ],
+      albumType: SpotubeAlbumType.single,
+      releaseDate: DateTime.now().year.toString(),
+    ),
+    durationMs: _videoDuration(video)?.inMilliseconds ?? 0,
+    isrc: "",
+    explicit: false,
+  ) as SpotubeFullTrackObject;
+}
+
+({String artist, String title}) _splitVideoTitle(String title, String author) {
+  final normalized = title
+      .replaceAll(RegExp(r"\[[^\]]+\]"), "")
+      .replaceAll(RegExp(r"\([Oo]fficial[^)]*\)"), "")
+      .replaceAll(RegExp(r"\([Ll]yrics?[^)]*\)"), "")
+      .replaceAll(RegExp(r"\([Aa]udio[^)]*\)"), "")
+      .trim();
+  final parts = normalized.split(RegExp(r"\s+-\s+"));
+  if (parts.length >= 2 && parts.first.trim().isNotEmpty) {
+    return (artist: parts.first.trim(), title: parts.skip(1).join(" - ").trim());
+  }
+  return (
+    artist: author.trim().isEmpty ? "YouTube Music" : author.trim(),
+    title: normalized.isEmpty ? title : normalized,
+  );
+}
+
+String _videoId(dynamic video) {
+  try {
+    return video.id.value as String;
+  } catch (_) {
+    return video.id.toString();
+  }
+}
+
+String _videoTitle(dynamic video) {
+  try {
+    return video.title as String;
+  } catch (_) {
+    return "YouTube track";
+  }
+}
+
+String _videoAuthor(dynamic video) {
+  try {
+    return video.author as String;
+  } catch (_) {
+    return "YouTube Music";
+  }
+}
+
+Duration? _videoDuration(dynamic video) {
+  try {
+    return video.duration as Duration?;
+  } catch (_) {
+    return null;
+  }
+}
+
+String _videoExternalUri(String videoId) {
+  return "https://music.youtube.com/watch?v=$videoId";
+}
+
+String _normalizeText(String value) {
+  return value
+      .toLowerCase()
+      .replaceAll(RegExp(r"[^a-zа-яё0-9]+", unicode: true), " ")
+      .trim();
 }
 
 SpotubeSimpleArtistObject _fallbackSimpleArtist(String id) {

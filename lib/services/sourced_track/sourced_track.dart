@@ -16,7 +16,6 @@ import 'package:etgmusic/services/metadata/errors/exceptions.dart';
 import 'package:etgmusic/services/telegram/telegram_media.dart';
 
 import 'package:etgmusic/services/sourced_track/exceptions.dart';
-import 'package:etgmusic/utils/service_utils.dart';
 
 final officialMusicRegex = RegExp(
   r"official\s(video|audio|music\svideo|lyric\svideo|visualizer)",
@@ -128,6 +127,17 @@ class SourcedTrack extends BasicSourcedTrack {
     final item = SpotubeAudioSourceMatchObject.fromJson(
       jsonDecode(cachedSource.sourceInfo),
     );
+    if (!isUsefulSibling(item, query)) {
+      await (database.sourceMatchTable.delete()
+            ..where(
+              (table) =>
+                  table.trackId.equals(query.id) &
+                  table.sourceType.equals(audioSourceConfig.slug),
+            ))
+          .go();
+      return fetchFromTrack(query: query, ref: ref);
+    }
+
     final manifest = await audioSource.audioSource.streams(item);
 
     final sourcedTrack = SourcedTrack(
@@ -149,48 +159,73 @@ class SourcedTrack extends BasicSourcedTrack {
     SpotubeFullTrackObject track,
   ) {
     return results
-        .map((sibling) {
-          int score = 0;
-
-          for (final artist in track.artists) {
-            final isSameChannelArtist =
-                sibling.artists.any((a) => a.toLowerCase() == artist.name);
-
-            if (isSameChannelArtist) {
-              score += 1;
-            }
-
-            final titleContainsArtist =
-                sibling.title.toLowerCase().contains(artist.name.toLowerCase());
-
-            if (titleContainsArtist) {
-              score += 1;
-            }
-          }
-
-          final titleContainsTrackName =
-              sibling.title.toLowerCase().contains(track.name.toLowerCase());
-
-          final hasOfficialFlag =
-              officialMusicRegex.hasMatch(sibling.title.toLowerCase());
-
-          if (titleContainsTrackName) {
-            score += 3;
-          }
-
-          if (hasOfficialFlag) {
-            score += 1;
-          }
-
-          if (hasOfficialFlag && titleContainsTrackName) {
-            score += 2;
-          }
-
-          return (sibling: sibling, score: score);
-        })
+        .map((sibling) => (
+              sibling: sibling,
+              score: sourceMatchScore(sibling, track),
+            ))
         .sorted((a, b) => b.score.compareTo(a.score))
         .map((e) => e.sibling)
         .toList();
+  }
+
+  static int sourceMatchScore(
+    SpotubeAudioSourceMatchObject sibling,
+    SpotubeFullTrackObject track,
+  ) {
+    int score = 0;
+    final title = sibling.title.toLowerCase();
+    final trackName = track.name.toLowerCase();
+
+    for (final artist in track.artists) {
+      final artistName = artist.name.toLowerCase();
+      final isSameChannelArtist =
+          sibling.artists.any((a) => a.toLowerCase() == artistName);
+
+      if (isSameChannelArtist) {
+        score += 2;
+      }
+
+      if (title.contains(artistName)) {
+        score += 2;
+      }
+    }
+
+    final titleContainsTrackName = title.contains(trackName);
+    final hasOfficialFlag = officialMusicRegex.hasMatch(title);
+
+    if (titleContainsTrackName) {
+      score += 5;
+    }
+
+    if (hasOfficialFlag) {
+      score += 1;
+    }
+
+    if (hasOfficialFlag && titleContainsTrackName) {
+      score += 2;
+    }
+
+    return score;
+  }
+
+  static bool isUsefulSibling(
+    SpotubeAudioSourceMatchObject sibling,
+    SpotubeFullTrackObject track,
+  ) {
+    if (sibling.duration <= Duration.zero) return false;
+    if (sibling.duration > const Duration(minutes: 18)) return false;
+
+    final expected = Duration(milliseconds: track.durationMs);
+    if (expected > const Duration(seconds: 30)) {
+      final minMs = (expected.inMilliseconds * 0.55).round();
+      final maxMs = (expected.inMilliseconds * 1.75).round();
+      if (sibling.duration.inMilliseconds < minMs ||
+          sibling.duration.inMilliseconds > maxMs) {
+        return false;
+      }
+    }
+
+    return sourceMatchScore(sibling, track) >= 2;
   }
 
   static Future<List<SpotubeAudioSourceMatchObject>> fetchSiblings({
@@ -203,17 +238,22 @@ class SourcedTrack extends BasicSourcedTrack {
       throw MetadataPluginException.noDefaultAudioSourcePlugin();
     }
 
-    final videoResults = <SpotubeAudioSourceMatchObject>[];
-
     final searchResults = await audioSource.audioSource.matches(query);
+    final usefulResults = searchResults
+        .where((source) => isUsefulSibling(source, query))
+        .toList();
+    final rankedResults = rankResults(
+      usefulResults.isEmpty ? searchResults : usefulResults,
+      query,
+    )
+        .where(
+          (source) =>
+              source.duration > Duration.zero &&
+              sourceMatchScore(source, query) >= 2,
+        )
+        .toList();
 
-    if (ServiceUtils.onlyContainsEnglish(query.name)) {
-      videoResults.addAll(searchResults);
-    } else {
-      videoResults.addAll(rankResults(searchResults, query));
-    }
-
-    return videoResults.toSet().toList();
+    return rankedResults.take(12).toSet().toList();
   }
 
   Future<SourcedTrack> copyWithSibling() async {

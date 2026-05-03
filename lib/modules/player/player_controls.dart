@@ -14,6 +14,7 @@ import 'package:etgmusic/modules/player/use_progress.dart';
 import 'package:etgmusic/provider/audio_player/audio_player.dart';
 import 'package:etgmusic/provider/audio_player/querying_track_info.dart';
 import 'package:etgmusic/services/audio_player/audio_player.dart';
+import 'package:etgmusic/services/kv_store/kv_store.dart';
 import 'package:etgmusic/utils/platform.dart';
 
 class PlayerControls extends HookConsumerWidget {
@@ -182,7 +183,13 @@ class PlayerControls extends HookConsumerWidget {
                       size: buttonSize,
                       enabled: !isFetchingActiveTrack,
                       icon: const Icon(SpotubeIcons.skipBack),
-                      onPressed: audioPlayer.skipToPrevious,
+                      onPressed: () {
+                        if (KVStoreService.crossfadePlayback) {
+                          audioPlayer.smoothSkipToPrevious();
+                        } else {
+                          audioPlayer.skipToPrevious();
+                        }
+                      },
                     ),
                   ),
                   Tooltip(
@@ -196,15 +203,33 @@ class PlayerControls extends HookConsumerWidget {
                     child: IconButton.primary(
                       size: buttonSize,
                       shape: ButtonShape.circle,
-                      icon: isFetchingActiveTrack
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(),
-                            )
-                          : Icon(
-                              playing ? SpotubeIcons.pause : SpotubeIcons.play,
+                      icon: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        transitionBuilder: (child, animation) {
+                          return ScaleTransition(
+                            scale: animation,
+                            child: FadeTransition(
+                              opacity: animation,
+                              child: child,
                             ),
+                          );
+                        },
+                        child: isFetchingActiveTrack
+                            ? const SizedBox(
+                                key: ValueKey("loading"),
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(),
+                              )
+                            : Icon(
+                                playing
+                                    ? SpotubeIcons.pause
+                                    : SpotubeIcons.play,
+                                key: ValueKey(playing),
+                              ),
+                      ),
                       onPressed: isFetchingActiveTrack
                           ? null
                           : Actions.handler<PlayPauseIntent>(
@@ -220,8 +245,15 @@ class PlayerControls extends HookConsumerWidget {
                     child: IconButton.ghost(
                       size: buttonSize,
                       icon: const Icon(SpotubeIcons.skipForward),
-                      onPressed:
-                          isFetchingActiveTrack ? null : audioPlayer.skipToNext,
+                      onPressed: isFetchingActiveTrack
+                          ? null
+                          : () {
+                              if (KVStoreService.crossfadePlayback) {
+                                audioPlayer.smoothSkipToNext();
+                              } else {
+                                audioPlayer.skipToNext();
+                              }
+                            },
                     ),
                   ),
                   Consumer(builder: (context, ref, _) {

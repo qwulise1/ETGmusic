@@ -682,6 +682,7 @@ final metadataPluginProvider = FutureProvider<MetadataPlugin?>(
       return createHybridTelegramMetadataPlugin(
         telegramPlugin,
         externalPlugin,
+        youtubeEngine: youtubeEngine,
       );
     } catch (error, stackTrace) {
       AppLogger.reportError(error, stackTrace);

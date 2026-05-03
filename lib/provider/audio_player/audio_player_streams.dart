@@ -15,6 +15,7 @@ import 'package:etgmusic/provider/scrobbler/scrobbler.dart';
 import 'package:etgmusic/provider/user_preferences/user_preferences_provider.dart';
 import 'package:etgmusic/services/audio_player/audio_player.dart';
 import 'package:etgmusic/services/audio_services/audio_services.dart';
+import 'package:etgmusic/services/kv_store/kv_store.dart';
 import 'package:etgmusic/services/logger/logger.dart';
 
 class AudioPlayerStreamListeners {
@@ -134,10 +135,27 @@ class AudioPlayerStreamListeners {
 
   StreamSubscription subscribeToPosition() {
     String lastTrack = ""; // used to prevent multiple calls to the same track
+    String lastCrossfadedTrack = "";
     return audioPlayer.positionStream.listen((event) async {
       final percentProgress =
           (event.inSeconds / max(audioPlayer.duration.inSeconds, 1)) * 100;
       try {
+        final activeTrackId = audioPlayerState.activeTrack?.id;
+        final canCrossfade = KVStoreService.crossfadePlayback &&
+            audioPlayer.isPlaying &&
+            activeTrackId != null &&
+            lastCrossfadedTrack != activeTrackId &&
+            audioPlayer.duration > const Duration(seconds: 12) &&
+            audioPlayer.duration - event <= const Duration(milliseconds: 1400) &&
+            audioPlayerState.currentIndex != -1 &&
+            audioPlayerState.currentIndex < audioPlayerState.tracks.length - 1;
+
+        if (canCrossfade) {
+          lastCrossfadedTrack = activeTrackId;
+          await audioPlayer.smoothSkipToNext();
+          return;
+        }
+
         if (percentProgress < 80 ||
             audioPlayerState.currentIndex == -1 ||
             audioPlayerState.currentIndex ==

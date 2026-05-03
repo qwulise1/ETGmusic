@@ -26,6 +26,34 @@ class SpotubeAudioPlayer extends AudioPlayerInterface
     await _mkPlayer.setVolume(volume * 100);
   }
 
+  Future<void> _fadeAround(Future<void> Function() action) async {
+    final targetVolume = volume;
+    if (targetVolume <= 0) {
+      await action();
+      return;
+    }
+
+    const steps = 8;
+    const stepDelay = Duration(milliseconds: 55);
+    for (var i = steps; i >= 0; i--) {
+      await setVolume(targetVolume * (i / steps));
+      await Future.delayed(stepDelay);
+    }
+    await action();
+    for (var i = 0; i <= steps; i++) {
+      await setVolume(targetVolume * (i / steps));
+      await Future.delayed(stepDelay);
+    }
+  }
+
+  Future<void> smoothSkipToNext() async {
+    await _fadeAround(skipToNext);
+  }
+
+  Future<void> smoothSkipToPrevious() async {
+    await _fadeAround(skipToPrevious);
+  }
+
   Future<void> setSpeed(double speed) async {
     await _mkPlayer.setRate(speed);
   }
@@ -130,6 +158,10 @@ class SpotubeAudioPlayer extends AudioPlayerInterface
 
   Future<void> setAudioNormalization(bool normalize) async {
     await _mkPlayer.setAudioNormalization(normalize);
+  }
+
+  Future<bool> openAudioEffectPanel() async {
+    return await _mkPlayer.openAudioEffectPanel();
   }
 
   Future<void> setDemuxerBufferSize(int sizeInBytes) async {

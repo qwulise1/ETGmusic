@@ -148,13 +148,15 @@ class SyncedLyrics extends HookConsumerWidget {
                                   )
                                 : null,
                           )
-                        : Center(
+                        : Align(
+                            alignment: Alignment.centerLeft,
                             child: Padding(
                               padding: index == lyricValue.lyrics.length - 1
-                                  ? const EdgeInsets.all(8.0).copyWith(
-                                      bottom: 100,
-                                    )
-                                  : const EdgeInsets.all(8.0),
+                                  ? const EdgeInsets.fromLTRB(18, 8, 18, 120)
+                                  : const EdgeInsets.symmetric(
+                                      horizontal: 18,
+                                      vertical: 8,
+                                    ),
                               child: AnimatedDefaultTextStyle(
                                 duration: const Duration(milliseconds: 250),
                                 style: TextStyle(
@@ -162,12 +164,13 @@ class SyncedLyrics extends HookConsumerWidget {
                                       ? theme.colorScheme.foreground
                                       : theme.colorScheme.mutedForeground,
                                   fontWeight: isActive
-                                      ? FontWeight.w500
-                                      : FontWeight.normal,
-                                  fontSize: (isActive ? 28 : 26) *
+                                      ? FontWeight.w900
+                                      : FontWeight.w700,
+                                  fontSize: (isActive ? 28 : 24) *
                                       (textZoomLevel.value / 100),
+                                  height: 1.55,
                                 ),
-                                textAlign: TextAlign.center,
+                                textAlign: TextAlign.start,
                                 child: MouseRegion(
                                   cursor: SystemMouseCursors.click,
                                   child: GestureDetector(

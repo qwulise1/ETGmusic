@@ -62,69 +62,73 @@ class PlainLyrics extends HookConsumerWidget {
             ],
             Expanded(
               child: SingleChildScrollView(
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Builder(
-                      builder: (context) {
-                        if (lyricsQuery.isLoading || lyricsQuery.isRefreshing) {
-                          return const ShimmerLyrics();
-                        } else if (lyricsQuery.hasError) {
-                          return Container(
-                            alignment: Alignment.center,
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  context.l10n.no_lyrics_available,
-                                  style: typography.large.copyWith(
-                                    color: palette.bodyTextColor,
-                                  ),
-                                  textAlign: TextAlign.center,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    mediaQuery.size.width > 720 ? 48 : 18,
+                    18,
+                    mediaQuery.size.width > 720 ? 48 : 18,
+                    120,
+                  ),
+                  child: Builder(
+                    builder: (context) {
+                      if (lyricsQuery.isLoading || lyricsQuery.isRefreshing) {
+                        return const ShimmerLyrics();
+                      } else if (lyricsQuery.hasError) {
+                        return Container(
+                          alignment: Alignment.center,
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                context.l10n.no_lyrics_available,
+                                style: typography.large.copyWith(
+                                  color: palette.bodyTextColor,
                                 ),
-                                const Gap(26),
-                                const Icon(SpotubeIcons.noLyrics, size: 60),
-                              ],
-                            ),
-                          );
-                        }
-
-                        final lyrics =
-                            lyricsQuery.asData?.value.lyrics.mapIndexed((i, e) {
-                          final next = lyricsQuery.asData?.value.lyrics
-                              .elementAtOrNull(i + 1);
-                          if (next != null &&
-                              e.time - next.time >
-                                  const Duration(milliseconds: 700)) {
-                            return "${e.text}\n";
-                          }
-
-                          return e.text;
-                        }).join("\n");
-
-                        return AnimatedDefaultTextStyle(
-                          duration: const Duration(milliseconds: 200),
-                          style: TextStyle(
-                            color: isModal == true
-                                ? context.theme.colorScheme.foreground
-                                : palette.bodyTextColor,
-                            fontSize: 24 * textZoomLevel.value / 100,
-                            height: textZoomLevel.value < 70
-                                ? 1.5
-                                : textZoomLevel.value > 150
-                                    ? 1.7
-                                    : 2,
-                          ),
-                          child: SelectableText(
-                            lyrics == null && playlist.activeTrack == null
-                                ? context.l10n.no_tracks_playing
-                                : lyrics ?? "",
-                            textAlign: TextAlign.center,
+                                textAlign: TextAlign.center,
+                              ),
+                              const Gap(26),
+                              const Icon(SpotubeIcons.noLyrics, size: 60),
+                            ],
                           ),
                         );
-                      },
-                    ),
+                      }
+
+                      final lyrics =
+                          lyricsQuery.asData?.value.lyrics.mapIndexed((i, e) {
+                        final next = lyricsQuery.asData?.value.lyrics
+                            .elementAtOrNull(i + 1);
+                        if (next != null &&
+                            e.time - next.time >
+                                const Duration(milliseconds: 700)) {
+                          return "${e.text}\n";
+                        }
+
+                        return e.text;
+                      }).join("\n");
+
+                      return AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 200),
+                        style: TextStyle(
+                          color: isModal == true
+                              ? context.theme.colorScheme.foreground
+                              : palette.bodyTextColor,
+                          fontSize: 23 * textZoomLevel.value / 100,
+                          fontWeight: FontWeight.w800,
+                          height: textZoomLevel.value < 70
+                              ? 1.45
+                              : textZoomLevel.value > 150
+                                  ? 1.65
+                                  : 1.85,
+                        ),
+                        child: SelectableText(
+                          lyrics == null && playlist.activeTrack == null
+                              ? context.l10n.no_tracks_playing
+                              : lyrics ?? "",
+                          textAlign: TextAlign.start,
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),

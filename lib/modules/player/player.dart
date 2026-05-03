@@ -1,6 +1,5 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:auto_size_text/auto_size_text.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
@@ -26,6 +25,8 @@ import 'package:etgmusic/provider/metadata_plugin/audio_source/quality_label.dar
 import 'package:etgmusic/provider/player_volume_control_provider.dart';
 import 'package:etgmusic/provider/server/active_track_sources.dart';
 import 'package:etgmusic/provider/volume_provider.dart';
+import 'package:etgmusic/services/audio_player/audio_player.dart';
+import 'package:etgmusic/services/kv_store/kv_store.dart';
 
 class PlayerView extends HookConsumerWidget {
   final PanelController panelController;
@@ -188,27 +189,68 @@ class PlayerView extends HookConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                     Center(
-                      child: Container(
-                        constraints: BoxConstraints.tightFor(
-                          width: albumArtSize,
-                          height: albumArtSize,
-                        ),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withAlpha(120),
-                              blurRadius: 34,
-                              offset: const Offset(0, 22),
+                      child: GestureDetector(
+                        onHorizontalDragEnd: (details) {
+                          final velocity =
+                              details.primaryVelocity ?? 0;
+                          if (velocity.abs() < 180) return;
+                          if (velocity < 0) {
+                            if (KVStoreService.crossfadePlayback) {
+                              audioPlayer.smoothSkipToNext();
+                            } else {
+                              audioPlayer.skipToNext();
+                            }
+                          } else {
+                            if (KVStoreService.crossfadePlayback) {
+                              audioPlayer.smoothSkipToPrevious();
+                            } else {
+                              audioPlayer.skipToPrevious();
+                            }
+                          }
+                        },
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 460),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInCubic,
+                          transitionBuilder: (child, animation) {
+                            final curved = CurvedAnimation(
+                              parent: animation,
+                              curve: Curves.easeOutCubic,
+                            );
+                            return FadeTransition(
+                              opacity: curved,
+                              child: ScaleTransition(
+                                scale: Tween<double>(begin: 0.97, end: 1)
+                                    .animate(curved),
+                                child: child,
+                              ),
+                            );
+                          },
+                          child: Container(
+                            key: ValueKey(currentActiveTrack?.id ?? albumArt),
+                            constraints: BoxConstraints.tightFor(
+                              width: albumArtSize,
+                              height: albumArtSize,
                             ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: UniversalImage(
-                            path: albumArt,
-                            placeholder: Assets.images.albumPlaceholder.path,
-                            fit: BoxFit.cover,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withAlpha(120),
+                                  blurRadius: 34,
+                                  offset: const Offset(0, 22),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: UniversalImage(
+                                path: albumArt,
+                                placeholder:
+                                    Assets.images.albumPlaceholder.path,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -274,56 +316,12 @@ class PlayerView extends HookConsumerWidget {
                     const SizedBox(height: 12),
                     const PlayerControls(),
                     const SizedBox(height: 14),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const PlayerActions(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          showQueue: false,
-                        ),
-                        Row(
-                          children: [
-                            IconButton.ghost(
-                              icon: const Icon(SpotubeIcons.share),
-                              enabled: currentActiveTrack != null,
-                              onPressed: currentActiveTrack == null
-                                  ? null
-                                  : () {
-                                      Clipboard.setData(
-                                        ClipboardData(
-                                          text:
-                                              currentActiveTrack!.externalUri,
-                                        ),
-                                      ).then((_) {
-                                        if (!context.mounted) return;
-                                        showToast(
-                                          context: context,
-                                          location: ToastLocation.topRight,
-                                          builder: (context, overlay) =>
-                                              SurfaceCard(
-                                            child: Text(
-                                              context.l10n.copied_to_clipboard(
-                                                currentActiveTrack!
-                                                    .externalUri,
-                                              ),
-                                            ),
-                                          ),
-                                        );
-                                      });
-                                    },
-                            ),
-                            IconButton.ghost(
-                              icon: const Icon(SpotubeIcons.queue),
-                              enabled: currentActiveTrack != null,
-                              onPressed: () {
-                                context.pushRoute(
-                                  const PlayerQueueRoute(),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ],
+                    const Align(
+                      alignment: Alignment.centerRight,
+                      child: PlayerActions(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        showQueue: false,
+                      ),
                     ),
                     const SizedBox(height: 18),
                     Row(

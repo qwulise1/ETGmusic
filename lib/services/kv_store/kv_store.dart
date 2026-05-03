@@ -89,6 +89,11 @@ abstract class KVStoreService {
   static Future<void> setShowPlayerVolumeControl(bool value) async =>
       await sharedPreferences.setBool('showPlayerVolumeControl', value);
 
+  static bool get crossfadePlayback =>
+      sharedPreferences.getBool('crossfadePlayback') ?? false;
+  static Future<void> setCrossfadePlayback(bool value) async =>
+      await sharedPreferences.setBool('crossfadePlayback', value);
+
   static bool get hasMigratedToDrift =>
       sharedPreferences.getBool('hasMigratedToDrift') ?? false;
   static Future<void> setHasMigratedToDrift(bool value) async =>

@@ -1,25 +1,31 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:shadcn_flutter/shadcn_flutter_extension.dart';
-import 'package:etgmusic/collections/routes.gr.dart';
 
+import 'package:etgmusic/collections/routes.gr.dart';
 import 'package:etgmusic/collections/spotube_icons.dart';
+import 'package:etgmusic/components/heart_button/heart_button.dart';
 import 'package:etgmusic/extensions/constrains.dart';
+import 'package:etgmusic/extensions/context.dart';
+import 'package:etgmusic/extensions/duration.dart';
 import 'package:etgmusic/models/metadata/metadata.dart';
 import 'package:etgmusic/modules/player/player_queue.dart';
 import 'package:etgmusic/modules/player/sibling_tracks_sheet.dart';
-import 'package:etgmusic/components/adaptive/adaptive_pop_sheet_list.dart';
-import 'package:etgmusic/components/heart_button/heart_button.dart';
-import 'package:etgmusic/extensions/context.dart';
-import 'package:etgmusic/extensions/duration.dart';
-import 'package:etgmusic/provider/download_manager_provider.dart';
+import 'package:etgmusic/modules/player/volume_slider.dart';
 import 'package:etgmusic/provider/audio_player/audio_player.dart';
+import 'package:etgmusic/provider/download_manager_provider.dart';
 import 'package:etgmusic/provider/local_tracks/local_tracks_provider.dart';
 import 'package:etgmusic/provider/metadata_plugin/core/auth.dart';
+import 'package:etgmusic/provider/player_crossfade_provider.dart';
+import 'package:etgmusic/provider/player_volume_control_provider.dart';
 import 'package:etgmusic/provider/sleep_timer_provider.dart';
+import 'package:etgmusic/provider/user_preferences/user_preferences_provider.dart';
+import 'package:etgmusic/provider/volume_provider.dart';
+import 'package:etgmusic/services/audio_player/audio_player.dart';
 
 class PlayerActions extends HookConsumerWidget {
   final MainAxisAlignment mainAxisAlignment;
@@ -38,51 +44,7 @@ class PlayerActions extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, ref) {
     final playlist = ref.watch(audioPlayerProvider);
-    final isLocalTrack = playlist.activeTrack is SpotubeLocalTrackObject;
-    ref.watch(downloadManagerProvider);
-    final downloader = ref.watch(downloadManagerProvider.notifier);
-    final isInQueue = useMemoized(() {
-      if (playlist.activeTrack is! SpotubeFullTrackObject) return false;
-      final downloadTask =
-          downloader.getTaskByTrackId(playlist.activeTrack!.id);
-      return const [
-        DownloadStatus.queued,
-        DownloadStatus.downloading,
-      ].contains(downloadTask?.status);
-    }, [
-      playlist.activeTrack,
-      downloader,
-    ]);
 
-    final localTracks = ref.watch(localTracksProvider).value;
-    final authenticated = ref.watch(metadataPluginAuthenticatedProvider);
-    final sleepTimer = ref.watch(sleepTimerProvider);
-    final sleepTimerNotifier = ref.watch(sleepTimerProvider.notifier);
-
-    final isDownloaded = useMemoized(() {
-      return localTracks?.values.expand((e) => e).any(
-                (element) =>
-                    element.name == playlist.activeTrack?.name &&
-                    element.album.name == playlist.activeTrack?.album.name &&
-                    element.artists.asString() ==
-                        playlist.activeTrack?.artists.asString(),
-              ) ==
-          true;
-    }, [localTracks, playlist.activeTrack]);
-
-    final sleepTimerEntries = useMemoized(
-      () => {
-        context.l10n.mins(15): const Duration(minutes: 15),
-        context.l10n.mins(30): const Duration(minutes: 30),
-        context.l10n.hour(1): const Duration(hours: 1),
-        context.l10n.hour(2): const Duration(hours: 2),
-      },
-      [context.l10n],
-    );
-
-    final customTimerLabel = sleepTimer == null
-        ? context.l10n.custom_hours
-        : "Осталось ${sleepTimer.format(abbreviated: true)}";
     return Row(
       mainAxisAlignment: mainAxisAlignment,
       children: [
@@ -92,188 +54,545 @@ class PlayerActions extends HookConsumerWidget {
             child: IconButton.ghost(
               icon: const Icon(SpotubeIcons.queue),
               enabled: playlist.activeTrack != null,
-              onPressed: () {
-                openDrawer(
-                  context: context,
-                  position: OverlayPosition.right,
-                  transformBackdrop: false,
-                  draggable: false,
-                  surfaceBlur: context.theme.surfaceBlur,
-                  surfaceOpacity: 0.7,
-                  builder: (context) {
-                    return Container(
-                      constraints: const BoxConstraints(maxWidth: 800),
-                      child: Consumer(
-                        builder: (context, ref, _) {
-                          final playlist = ref.watch(audioPlayerProvider);
-                          final playlistNotifier =
-                              ref.read(audioPlayerProvider.notifier);
-
-                          return PlayerQueue.fromAudioPlayerNotifier(
-                            floating: true,
-                            playlist: playlist,
-                            notifier: playlistNotifier,
-                          );
-                        },
-                      ),
-                    );
-                  },
-                );
-              },
+              onPressed: () => _openQueueDrawer(context),
             ),
           ),
-        if (!isLocalTrack)
-          Tooltip(
-            tooltip: TooltipContainer(
-              child: Text(context.l10n.alternative_track_sources),
-            ).call,
-            child: IconButton.ghost(
-              enabled: playlist.activeTrack != null,
-              icon: const Icon(SpotubeIcons.alternativeRoute),
-              onPressed: () {
-                final screenSize = MediaQuery.sizeOf(context);
-                if (screenSize.mdAndUp) {
-                  showPopover(
-                    alignment: Alignment.bottomCenter,
-                    context: context,
-                    builder: (context) {
-                      return SurfaceCard(
-                        padding: EdgeInsets.zero,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            maxHeight: 600,
-                            maxWidth: 500,
-                          ),
-                          child: SiblingTracksSheet(floating: floatingQueue),
-                        ),
-                      );
-                    },
-                  );
-                } else {
-                  context.pushRoute(const PlayerTrackSourcesRoute());
-                }
-              },
-            ),
+        Tooltip(
+          tooltip: TooltipContainer(child: const Text("Настройки плеера")).call,
+          child: IconButton.ghost(
+            icon: const Icon(SpotubeIcons.settings),
+            enabled: playlist.activeTrack != null,
+            onPressed: playlist.activeTrack == null
+                ? null
+                : () => _openPlayerActionsOverlay(
+                      context,
+                      floatingQueue: floatingQueue,
+                    ),
           ),
-        if (!kIsWeb && !isLocalTrack)
-          if (isInQueue)
-            const SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(
-                size: 2,
-              ),
-            )
-          else
-            Tooltip(
-              tooltip:
-                  TooltipContainer(child: Text(context.l10n.download_track))
-                      .call,
-              child: IconButton.ghost(
-                icon: Icon(
-                  isDownloaded ? SpotubeIcons.done : SpotubeIcons.download,
-                ),
-                onPressed: playlist.activeTrack != null
-                    ? () => downloader.addToQueue(
-                        playlist.activeTrack! as SpotubeFullTrackObject)
-                    : null,
-              ),
-            ),
-        if (playlist.activeTrack != null &&
-            !isLocalTrack &&
-            authenticated.asData?.value == true)
-          TrackHeartButton(track: playlist.activeTrack!),
-        AdaptivePopSheetList<Duration>(
-          tooltip: context.l10n.sleep_timer,
-          offset: Offset(0, -50 * (sleepTimerEntries.values.length + 2)),
-          headings: [
-            Text(context.l10n.sleep_timer),
-          ],
-          icon: Icon(
-            SpotubeIcons.timer,
-            color: sleepTimer != null ? Colors.red : null,
-          ),
-          onSelected: (value) {
-            if (value == Duration.zero) {
-              sleepTimerNotifier.cancelSleepTimer();
-            } else {
-              sleepTimerNotifier.setSleepTimer(value);
-            }
-          },
-          items: (context) => [
-            for (final entry in sleepTimerEntries.entries)
-              AdaptiveMenuButton(
-                value: entry.value,
-                enabled: sleepTimer != entry.value,
-                child: Text(entry.key),
-              ),
-            AdaptiveMenuButton(
-              enabled: true,
-              onPressed: (context) async {
-                final now = DateTime.now();
-                final time = await showDialog<TimeOfDay?>(
-                  context: context,
-                  builder: (context) => HookBuilder(builder: (context) {
-                    final timeRef = useRef<TimeOfDay?>(null);
-                    return AlertDialog(
-                      trailing: IconButton.ghost(
-                        size: ButtonSize.xSmall,
-                        icon: const Icon(SpotubeIcons.close),
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                      ),
-                      title: Text(
-                        ShadcnLocalizations.of(context).placeholderTimePicker,
-                      ),
-                      content: TimePickerDialog(
-                        use24HourFormat: false,
-                        initialValue: TimeOfDay.fromDateTime(
-                          DateTime.now().add(sleepTimer ?? Duration.zero),
-                        ),
-                        onChanged: (value) => timeRef.value = value,
-                      ),
-                      actions: [
-                        Button.primary(
-                          onPressed: () {
-                            Navigator.of(context).pop(timeRef.value);
-                          },
-                          child: Text(context.l10n.save),
-                        ),
-                      ],
-                    );
-                  }),
-                );
-
-                if (time != null) {
-                  final selectedToday = DateTime(
-                    now.year,
-                    now.month,
-                    now.day,
-                    time.hour,
-                    time.minute,
-                  );
-                  final endsAt = selectedToday.isAfter(now)
-                      ? selectedToday
-                      : selectedToday.add(const Duration(days: 1));
-
-                  sleepTimerNotifier.setSleepTimer(endsAt.difference(now));
-                }
-              },
-              child: Text(customTimerLabel),
-            ),
-            AdaptiveMenuButton(
-              value: Duration.zero,
-              enabled: sleepTimer != Duration.zero && sleepTimer != null,
-              child: Text(
-                context.l10n.cancel,
-                style: const TextStyle(color: Colors.green),
-              ),
-            ),
-          ],
         ),
-        ...(extraActions ?? [])
+        ...(extraActions ?? []),
       ],
     );
   }
+}
+
+class _PlayerActionsSheet extends HookConsumerWidget {
+  final BuildContext rootContext;
+  final VoidCallback close;
+  final bool floatingQueue;
+
+  const _PlayerActionsSheet({
+    required this.rootContext,
+    required this.close,
+    required this.floatingQueue,
+  });
+
+  @override
+  Widget build(BuildContext context, ref) {
+    final theme = Theme.of(context);
+    final playlist = ref.watch(audioPlayerProvider);
+    final activeTrack = playlist.activeTrack;
+    final fullTrack = activeTrack is SpotubeFullTrackObject ? activeTrack : null;
+    final isLocalTrack = activeTrack is SpotubeLocalTrackObject;
+    final downloader = ref.watch(downloadManagerProvider.notifier);
+    final localTracks = ref.watch(localTracksProvider).value;
+    final authenticated = ref.watch(metadataPluginAuthenticatedProvider);
+    final preferences = ref.watch(userPreferencesProvider);
+    final preferencesNotifier = ref.watch(userPreferencesProvider.notifier);
+    final crossfade = ref.watch(playerCrossfadeProvider);
+    final crossfadeNotifier = ref.watch(playerCrossfadeProvider.notifier);
+    final showPlayerVolume = ref.watch(playerVolumeControlProvider);
+    final showPlayerVolumeNotifier =
+        ref.watch(playerVolumeControlProvider.notifier);
+    final volume = ref.watch(volumeProvider);
+    final sleepTimer = ref.watch(sleepTimerProvider);
+    final sleepTimerNotifier = ref.watch(sleepTimerProvider.notifier);
+
+    final isInDownloadQueue = useMemoized(() {
+      if (fullTrack == null) return false;
+      final downloadTask = downloader.getTaskByTrackId(fullTrack.id);
+      return const [
+        DownloadStatus.queued,
+        DownloadStatus.downloading,
+      ].contains(downloadTask?.status);
+    }, [fullTrack, downloader]);
+
+    final isDownloaded = useMemoized(() {
+      if (activeTrack == null) return false;
+      return localTracks?.values.expand((e) => e).any(
+                (element) =>
+                    element.name == activeTrack.name &&
+                    element.album.name == activeTrack.album.name &&
+                    element.artists.asString() == activeTrack.artists.asString(),
+              ) ==
+          true;
+    }, [localTracks, activeTrack]);
+
+    void closeThen(VoidCallback action) {
+      close();
+      Future.microtask(action);
+    }
+
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 430),
+        child: SurfaceCard(
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+          borderRadius: BorderRadius.circular(24),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      "Настройки",
+                      style: theme.typography.large.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton.ghost(
+                      size: ButtonSize.small,
+                      icon: const Icon(SpotubeIcons.close),
+                      onPressed: close,
+                    ),
+                  ],
+                ),
+                const Gap(10),
+                if (!isLocalTrack && fullTrack != null)
+                  _ActionTile(
+                    icon: SpotubeIcons.alternativeRoute,
+                    title: "Альтернативный источник",
+                    subtitle: "Похожие аудио без мусорных 00:00-видео",
+                    onPressed: () => closeThen(() {
+                      _openSiblingTracks(rootContext, floatingQueue);
+                    }),
+                  ),
+                if (!kIsWeb && fullTrack != null)
+                  _ActionTile(
+                    icon: isDownloaded ? SpotubeIcons.done : SpotubeIcons.download,
+                    title: isDownloaded ? "Уже скачано" : "Скачать трек",
+                    subtitle: isInDownloadQueue
+                        ? "Загрузка уже в очереди"
+                        : "Сохранить трек локально",
+                    enabled: !isInDownloadQueue && !isDownloaded,
+                    onPressed: () {
+                      downloader.addToQueue(fullTrack);
+                      close();
+                    },
+                  ),
+                if (activeTrack != null)
+                  _ActionTile(
+                    icon: SpotubeIcons.share,
+                    title: "Поделиться",
+                    subtitle: "Скопировать ссылку трека",
+                    onPressed: () {
+                      _copyTrackLink(rootContext, activeTrack);
+                      close();
+                    },
+                  ),
+                if (fullTrack != null &&
+                    authenticated.asData?.value == true)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      children: [
+                        TrackHeartButton(track: fullTrack),
+                        const Gap(6),
+                        Expanded(
+                          child: Text(
+                            "Сердечко / избранное",
+                            style: theme.typography.normal.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                const Gap(8),
+                const _SectionTitle("Звук"),
+                _ActionTile(
+                  icon: SpotubeIcons.audioQuality,
+                  title: "Эквалайзер",
+                  subtitle: "Открыть системные аудиоэффекты Android",
+                  onPressed: () async {
+                    final opened = await audioPlayer.openAudioEffectPanel();
+                    if (!opened && context.mounted) {
+                      _showPlainToast(
+                        context,
+                        "Системный эквалайзер не найден на этой прошивке",
+                      );
+                    }
+                  },
+                ),
+                _SwitchTile(
+                  icon: SpotubeIcons.repeat,
+                  title: "Плавный переход",
+                  subtitle: "Мягкий fade между треками и кнопками next/prev",
+                  value: crossfade,
+                  onChanged: crossfadeNotifier.setEnabled,
+                ),
+                _SwitchTile(
+                  icon: SpotubeIcons.normalize,
+                  title: context.l10n.normalize_audio,
+                  subtitle: "Выравнивать громкость треков",
+                  value: preferences.normalizeAudio,
+                  onChanged: preferencesNotifier.setNormalizeAudio,
+                ),
+                _SwitchTile(
+                  icon: SpotubeIcons.volumeHigh,
+                  title: "Показывать громкость",
+                  subtitle: "Оставляет регулятор в полном и нижнем плеере",
+                  value: showPlayerVolume,
+                  onChanged: showPlayerVolumeNotifier.setVisible,
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, top: 4, bottom: 10),
+                  child: VolumeSlider(
+                    fullWidth: true,
+                    value: volume,
+                    onChanged: ref.read(volumeProvider.notifier).setVolume,
+                  ),
+                ),
+                const _SectionTitle("Таймер сна"),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _TimerButton(
+                      label: context.l10n.mins(15),
+                      active: sleepTimer == const Duration(minutes: 15),
+                      onPressed: () => sleepTimerNotifier.setSleepTimer(
+                        const Duration(minutes: 15),
+                      ),
+                    ),
+                    _TimerButton(
+                      label: context.l10n.mins(30),
+                      active: sleepTimer == const Duration(minutes: 30),
+                      onPressed: () => sleepTimerNotifier.setSleepTimer(
+                        const Duration(minutes: 30),
+                      ),
+                    ),
+                    _TimerButton(
+                      label: context.l10n.hour(1),
+                      active: sleepTimer == const Duration(hours: 1),
+                      onPressed: () => sleepTimerNotifier.setSleepTimer(
+                        const Duration(hours: 1),
+                      ),
+                    ),
+                    _TimerButton(
+                      label: sleepTimer == null
+                          ? context.l10n.custom_hours
+                          : "Осталось ${sleepTimer.format(abbreviated: true)}",
+                      active: sleepTimer != null,
+                      onPressed: () => _pickCustomSleepTimer(
+                        context,
+                        sleepTimer,
+                        sleepTimerNotifier,
+                      ),
+                    ),
+                    if (sleepTimer != null)
+                      _TimerButton(
+                        label: context.l10n.cancel,
+                        active: false,
+                        onPressed: sleepTimerNotifier.cancelSleepTimer,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  const _ActionTile({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.enabled = true,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Button.ghost(
+      leading: Icon(icon),
+      enabled: enabled,
+      onPressed: onPressed,
+      child: _TileText(title: title, subtitle: subtitle),
+    );
+  }
+}
+
+class _SwitchTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _SwitchTile({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Button.ghost(
+      leading: Icon(icon),
+      onPressed: () => onChanged(!value),
+      trailing: Switch(value: value, onChanged: onChanged),
+      child: _TileText(title: title, subtitle: subtitle),
+    );
+  }
+}
+
+class _TileText extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+
+  const _TileText({required this.title, this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            title,
+            style: theme.typography.normal.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (subtitle != null)
+            Text(
+              subtitle!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.typography.small.copyWith(
+                color: theme.colorScheme.mutedForeground,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String text;
+
+  const _SectionTitle(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 12, 4, 6),
+      child: Text(
+        text,
+        style: Theme.of(context).typography.small.copyWith(
+              color: Theme.of(context).colorScheme.mutedForeground,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+            ),
+      ),
+    );
+  }
+}
+
+class _TimerButton extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onPressed;
+
+  const _TimerButton({
+    required this.label,
+    required this.active,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Button(
+      style: active ? ButtonVariance.secondary : ButtonVariance.outline,
+      onPressed: onPressed,
+      child: Text(label),
+    );
+  }
+}
+
+void _openPlayerActionsOverlay(
+  BuildContext context, {
+  required bool floatingQueue,
+}) {
+  if (MediaQuery.sizeOf(context).mdAndUp) {
+    showDropdown(
+      context: context,
+      builder: (overlayContext) {
+        return _PlayerActionsSheet(
+          rootContext: context,
+          close: () => closeOverlay(overlayContext),
+          floatingQueue: floatingQueue,
+        );
+      },
+    );
+    return;
+  }
+
+  openSheet(
+    context: context,
+    position: OverlayPosition.bottom,
+    builder: (sheetContext) {
+      return _PlayerActionsSheet(
+        rootContext: context,
+        close: () => closeSheet(sheetContext),
+        floatingQueue: floatingQueue,
+      );
+    },
+  );
+}
+
+void _openQueueDrawer(BuildContext context) {
+  openDrawer(
+    context: context,
+    position: OverlayPosition.right,
+    transformBackdrop: false,
+    draggable: false,
+    surfaceBlur: context.theme.surfaceBlur,
+    surfaceOpacity: 0.7,
+    builder: (context) {
+      return Container(
+        constraints: const BoxConstraints(maxWidth: 800),
+        child: Consumer(
+          builder: (context, ref, _) {
+            final playlist = ref.watch(audioPlayerProvider);
+            final playlistNotifier = ref.read(audioPlayerProvider.notifier);
+
+            return PlayerQueue.fromAudioPlayerNotifier(
+              floating: true,
+              playlist: playlist,
+              notifier: playlistNotifier,
+            );
+          },
+        ),
+      );
+    },
+  );
+}
+
+void _openSiblingTracks(BuildContext context, bool floatingQueue) {
+  final screenSize = MediaQuery.sizeOf(context);
+  if (screenSize.mdAndUp) {
+    showPopover(
+      alignment: Alignment.bottomCenter,
+      context: context,
+      builder: (context) {
+        return SurfaceCard(
+          padding: EdgeInsets.zero,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxHeight: 600,
+              maxWidth: 500,
+            ),
+            child: SiblingTracksSheet(floating: floatingQueue),
+          ),
+        );
+      },
+    );
+  } else {
+    context.pushRoute(const PlayerTrackSourcesRoute());
+  }
+}
+
+void _copyTrackLink(BuildContext context, SpotubeTrackObject track) {
+  Clipboard.setData(ClipboardData(text: track.externalUri)).then((_) {
+    if (!context.mounted) return;
+    _showPlainToast(
+      context,
+      context.l10n.copied_to_clipboard(track.externalUri),
+    );
+  });
+}
+
+void _showPlainToast(BuildContext context, String text) {
+  showToast(
+    context: context,
+    location: ToastLocation.topRight,
+    builder: (context, overlay) => SurfaceCard(child: Text(text)),
+  );
+}
+
+Future<void> _pickCustomSleepTimer(
+  BuildContext context,
+  Duration? sleepTimer,
+  SleepTimerNotifier sleepTimerNotifier,
+) async {
+  final now = DateTime.now();
+  final time = await showDialog<TimeOfDay?>(
+    context: context,
+    builder: (context) => HookBuilder(builder: (context) {
+      final timeRef = useRef<TimeOfDay?>(null);
+      return AlertDialog(
+        trailing: IconButton.ghost(
+          size: ButtonSize.xSmall,
+          icon: const Icon(SpotubeIcons.close),
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+        ),
+        title: Text(
+          ShadcnLocalizations.of(context).placeholderTimePicker,
+        ),
+        content: TimePickerDialog(
+          use24HourFormat: false,
+          initialValue: TimeOfDay.fromDateTime(
+            DateTime.now().add(sleepTimer ?? Duration.zero),
+          ),
+          onChanged: (value) => timeRef.value = value,
+        ),
+        actions: [
+          Button.primary(
+            onPressed: () {
+              Navigator.of(context).pop(timeRef.value);
+            },
+            child: Text(context.l10n.save),
+          ),
+        ],
+      );
+    }),
+  );
+
+  if (time == null) return;
+  final selectedToday = DateTime(
+    now.year,
+    now.month,
+    now.day,
+    time.hour,
+    time.minute,
+  );
+  final endsAt = selectedToday.isAfter(now)
+      ? selectedToday
+      : selectedToday.add(const Duration(days: 1));
+
+  sleepTimerNotifier.setSleepTimer(endsAt.difference(now));
 }

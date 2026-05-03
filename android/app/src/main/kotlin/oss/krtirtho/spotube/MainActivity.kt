@@ -1,10 +1,12 @@
 package io.qwulise1.etgmusic
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.audiofx.AudioEffect
 import android.os.Build
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -41,6 +43,13 @@ class MainActivity: AudioServiceActivity() {
                         stopService(Intent(this, TelegramSyncService::class.java))
                         notificationManager().cancel(NOTIFICATION_ID)
                         result.success(null)
+                    }
+                    "openAudioEffects" -> {
+                        result.success(
+                            openAudioEffects(
+                                call.argument<Int>("sessionId") ?: 0,
+                            ),
+                        )
                     }
                     else -> result.notImplemented()
                 }
@@ -92,5 +101,20 @@ class MainActivity: AudioServiceActivity() {
 
     private fun notificationManager(): NotificationManager {
         return getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    }
+
+    private fun openAudioEffects(sessionId: Int): Boolean {
+        val intent = Intent(AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL).apply {
+            putExtra(AudioEffect.EXTRA_AUDIO_SESSION, sessionId)
+            putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
+            putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MUSIC)
+        }
+
+        return try {
+            startActivityForResult(intent, 64028)
+            true
+        } catch (_: ActivityNotFoundException) {
+            false
+        }
     }
 }
