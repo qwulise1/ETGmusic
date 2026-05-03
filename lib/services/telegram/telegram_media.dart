@@ -119,6 +119,7 @@ class TelegramMediaService {
   static const _tracksKey = "telegram_media_tracks";
   static const _sourcesKey = "telegram_media_sources";
   static const _albumOverridesKey = "telegram_album_overrides";
+  static const _likedTrackIdsKey = "telegram_liked_track_ids";
   static const _updateOffsetKey = "telegram_media_update_offset";
   static bool _syncRunning = false;
   final TelegramMtprotoService _mtproto = TelegramMtprotoService();
@@ -230,6 +231,33 @@ class TelegramMediaService {
               albumOverrides,
             ))
         .toList();
+  }
+
+  Future<Set<String>> loadLikedTrackIds() async {
+    return (KVStoreService.sharedPreferences.getStringList(_likedTrackIdsKey) ??
+            const <String>[])
+        .toSet();
+  }
+
+  Future<void> setLikedTrackIds(Set<String> ids) async {
+    await KVStoreService.sharedPreferences.setStringList(
+      _likedTrackIdsKey,
+      ids.toList()..sort(),
+    );
+    ref.invalidate(telegramMediaTracksProvider);
+    ref.read(telegramMediaRevisionProvider.notifier).state++;
+  }
+
+  Future<void> addLikedTrackIds(List<String> ids) async {
+    final likedIds = await loadLikedTrackIds();
+    likedIds.addAll(ids);
+    await setLikedTrackIds(likedIds);
+  }
+
+  Future<void> removeLikedTrackIds(List<String> ids) async {
+    final likedIds = await loadLikedTrackIds();
+    likedIds.removeAll(ids);
+    await setLikedTrackIds(likedIds);
   }
 
   Future<SpotubeFullTrackObject?> findTrack(String id) async {
@@ -360,6 +388,37 @@ class TelegramMediaService {
     ref.invalidate(telegramMediaTracksProvider);
     ref.read(telegramMediaRevisionProvider.notifier).state++;
     return applyAlbumOverride(album);
+  }
+
+  Future<void> deleteAlbum(String albumId) async {
+    final records = await _readStoredTracks();
+    final albumOverrides = _readAlbumOverrides();
+    final removedIds = <String>{};
+    final kept = <TelegramTrackRecord>[];
+
+    for (final record in records) {
+      final track = _applyAlbumOverride(
+        record.toMetadata(),
+        albumOverrides,
+      );
+      if (track.album.id == albumId) {
+        removedIds.add(track.id);
+      } else {
+        kept.add(record);
+      }
+    }
+
+    await _writeStoredTracks(kept);
+    if (removedIds.isNotEmpty) {
+      final likedIds = await loadLikedTrackIds();
+      likedIds.removeAll(removedIds);
+      await KVStoreService.sharedPreferences.setStringList(
+        _likedTrackIdsKey,
+        likedIds.toList()..sort(),
+      );
+    }
+    ref.invalidate(telegramMediaTracksProvider);
+    ref.read(telegramMediaRevisionProvider.notifier).state++;
   }
 
   Future<TelegramSyncResult> syncBotUpdates({

@@ -43,6 +43,8 @@ class PlayerView extends HookConsumerWidget {
     final sourcedCurrentTrack = ref.watch(activeTrackSourcesProvider);
     final currentActiveTrack =
         ref.watch(audioPlayerProvider.select((s) => s.activeTrack));
+    final currentIndex =
+        ref.watch(audioPlayerProvider.select((s) => s.currentIndex));
     final currentActiveTrackSource = sourcedCurrentTrack.asData?.value?.source;
     final isLocalTrack = currentActiveTrack is SpotubeLocalTrackObject;
     final mediaQuery = MediaQuery.sizeOf(context);
@@ -53,14 +55,21 @@ class PlayerView extends HookConsumerWidget {
         .toDouble();
 
     final shouldHide = useState(true);
+    final previousIndex = useRef(currentIndex);
+    final coverDirection = useState(0.0);
 
     ref.listen(navigationPanelHeight, (_, height) {
       shouldHide.value = height.ceil() == 50;
     });
 
-    if (shouldHide.value) {
-      return const SizedBox();
-    }
+    useEffect(() {
+      if (currentIndex != previousIndex.value) {
+        coverDirection.value =
+            currentIndex > previousIndex.value ? 1.0 : -1.0;
+        previousIndex.value = currentIndex;
+      }
+      return null;
+    }, [currentIndex]);
 
     useEffect(() {
       if (mediaQuery.lgAndUp) {
@@ -89,6 +98,10 @@ class PlayerView extends HookConsumerWidget {
         }
       };
     }, [panelController.isAttached && panelController.isPanelOpen]);
+
+    if (shouldHide.value) {
+      return const SizedBox();
+    }
 
     return AppPopScope(
       canPop: false,
@@ -217,12 +230,18 @@ class PlayerView extends HookConsumerWidget {
                               parent: animation,
                               curve: Curves.easeOutCubic,
                             );
-                            return FadeTransition(
+                            return SlideTransition(
+                              position: Tween<Offset>(
+                                begin: Offset(coverDirection.value * 0.10, 0),
+                                end: Offset.zero,
+                              ).animate(curved),
+                              child: FadeTransition(
                               opacity: curved,
                               child: ScaleTransition(
                                 scale: Tween<double>(begin: 0.97, end: 1)
                                     .animate(curved),
                                 child: child,
+                              ),
                               ),
                             );
                           },

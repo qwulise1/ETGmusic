@@ -333,8 +333,15 @@ class _HybridSearchEndpoint {
     }
 
     final videos = await _safeFuture<List<dynamic>>(
-      () async =>
-          (await engine.searchVideos("$normalized audio")).cast<dynamic>(),
+      () async {
+        final withAudio =
+            (await engine.searchVideos("$normalized audio")).cast<dynamic>();
+        final plain = (await engine.searchVideos(normalized)).cast<dynamic>();
+        return _dedupeById(
+          [...withAudio, ...plain],
+          (video) => _videoId(video),
+        );
+      },
       const <dynamic>[],
     );
 
@@ -361,7 +368,13 @@ class _HybridTrackEndpoint {
   }
 
   Future<void> save(List<String> ids) async {
+    final telegramIds = ids.where(_isTelegramId).toList();
     final externalIds = ids.where((id) => !_isTelegramId(id)).toList();
+    if (telegramIds.isNotEmpty) {
+      await _safeVoid(() async {
+        await telegram.save(telegramIds);
+      });
+    }
     if (externalIds.isNotEmpty) {
       await _safeVoid(() async {
         await external.save(externalIds);
@@ -370,7 +383,13 @@ class _HybridTrackEndpoint {
   }
 
   Future<void> unsave(List<String> ids) async {
+    final telegramIds = ids.where(_isTelegramId).toList();
     final externalIds = ids.where((id) => !_isTelegramId(id)).toList();
+    if (telegramIds.isNotEmpty) {
+      await _safeVoid(() async {
+        await telegram.unsave(telegramIds);
+      });
+    }
     if (externalIds.isNotEmpty) {
       await _safeVoid(() async {
         await external.unsave(externalIds);
@@ -760,8 +779,13 @@ class _TelegramLibraryEndpoint {
     int? offset,
     int? limit,
   }) async {
+    final likedIds =
+        await ref.read(telegramMediaServiceProvider).loadLikedTrackIds();
+    final tracks = (await ref.read(telegramMediaTracksProvider.future))
+        .where((track) => likedIds.contains(track.id))
+        .toList();
     return _paginate(
-      await ref.read(telegramMediaTracksProvider.future),
+      tracks,
       offset: offset,
       limit: limit,
     );
@@ -817,9 +841,9 @@ class _TelegramLibraryEndpoint {
   }
 
   Future<List<bool>> isSavedTracks(List<String> ids) async {
-    final tracks = await ref.read(telegramMediaTracksProvider.future);
-    final savedIds = tracks.map((track) => track.id).toSet();
-    return ids.map(savedIds.contains).toList();
+    final savedIds =
+        await ref.read(telegramMediaServiceProvider).loadLikedTrackIds();
+    return ids.map((id) => savedIds.contains(id)).toList();
   }
 
   Future<List<bool>> isSavedAlbums(List<String> ids) async {
@@ -1027,9 +1051,13 @@ class _TelegramTrackEndpoint {
     );
   }
 
-  Future<void> save(List<String> ids) async {}
+  Future<void> save(List<String> ids) async {
+    await ref.read(telegramMediaServiceProvider).addLikedTrackIds(ids);
+  }
 
-  Future<void> unsave(List<String> ids) async {}
+  Future<void> unsave(List<String> ids) async {
+    await ref.read(telegramMediaServiceProvider).removeLikedTrackIds(ids);
+  }
 
   Future<List<SpotubeFullTrackObject>> radio(String id) async {
     final tracks = await ref.read(telegramMediaTracksProvider.future);
@@ -1220,8 +1248,9 @@ bool _isSearchableMusicVideo(dynamic video, String query) {
       .toList();
   if (queryTokens.isEmpty) return true;
 
-  final matched = queryTokens.where(title.contains).length;
+  final matched = queryTokens.where((token) => title.contains(token)).length;
   return matched >= (queryTokens.length == 1 ? 1 : 2) ||
+      matched >= (queryTokens.length / 2).ceil() ||
       title.contains("music") ||
       title.contains("audio") ||
       title.contains("lyric");

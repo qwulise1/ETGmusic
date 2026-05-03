@@ -288,7 +288,8 @@ class SyncedLyricsNotifier
       final cachedLyrics = await (database.select(database.lyricsTable)
             ..where((tbl) => tbl.trackId.equals(track.id)))
           .map((row) => row.data)
-          .getSingleOrNull();
+          .get()
+          .then((rows) => rows.isEmpty ? null : rows.last);
 
       SubtitleSimple? lyrics = cachedLyrics;
 
@@ -302,7 +303,13 @@ class SyncedLyricsNotifier
         throw Exception("Unable to find lyrics");
       }
 
-      if (cachedLyrics == null || cachedLyrics.lyrics.isEmpty) {
+      if (cachedLyrics == null ||
+          cachedLyrics.lyrics.isEmpty ||
+          (cachedLyrics.lyrics.length <= 5 &&
+              lyrics.lyrics.length > cachedLyrics.lyrics.length)) {
+        await (database.delete(database.lyricsTable)
+              ..where((tbl) => tbl.trackId.equals(track.id)))
+            .go();
         await database.into(database.lyricsTable).insert(
               LyricsTableCompanion.insert(
                 trackId: track.id,

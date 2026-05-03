@@ -94,6 +94,20 @@ abstract class KVStoreService {
   static Future<void> setCrossfadePlayback(bool value) async =>
       await sharedPreferences.setBool('crossfadePlayback', value);
 
+  static List<double> get equalizerBands {
+    final values = sharedPreferences.getStringList('equalizerBands');
+    if (values == null || values.length != 10) {
+      return List<double>.filled(10, 0);
+    }
+    return values.map((value) => double.tryParse(value) ?? 0).toList();
+  }
+
+  static Future<void> setEqualizerBands(List<double> values) async =>
+      await sharedPreferences.setStringList(
+        'equalizerBands',
+        values.map((value) => value.toStringAsFixed(2)).toList(),
+      );
+
   static bool get hasMigratedToDrift =>
       sharedPreferences.getBool('hasMigratedToDrift') ?? false;
   static Future<void> setHasMigratedToDrift(bool value) async =>

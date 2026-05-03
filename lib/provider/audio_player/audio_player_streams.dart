@@ -146,7 +146,7 @@ class AudioPlayerStreamListeners {
             activeTrackId != null &&
             lastCrossfadedTrack != activeTrackId &&
             audioPlayer.duration > const Duration(seconds: 12) &&
-            audioPlayer.duration - event <= const Duration(milliseconds: 1400) &&
+            audioPlayer.duration - event <= const Duration(milliseconds: 2300) &&
             audioPlayerState.currentIndex != -1 &&
             audioPlayerState.currentIndex < audioPlayerState.tracks.length - 1;
 

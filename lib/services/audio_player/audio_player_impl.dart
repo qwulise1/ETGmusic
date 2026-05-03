@@ -33,13 +33,14 @@ class SpotubeAudioPlayer extends AudioPlayerInterface
       return;
     }
 
-    const steps = 8;
-    const stepDelay = Duration(milliseconds: 55);
+    const steps = 14;
+    const stepDelay = Duration(milliseconds: 46);
     for (var i = steps; i >= 0; i--) {
       await setVolume(targetVolume * (i / steps));
       await Future.delayed(stepDelay);
     }
     await action();
+    await Future.delayed(const Duration(milliseconds: 120));
     for (var i = 0; i <= steps; i++) {
       await setVolume(targetVolume * (i / steps));
       await Future.delayed(stepDelay);
@@ -158,6 +159,10 @@ class SpotubeAudioPlayer extends AudioPlayerInterface
 
   Future<void> setAudioNormalization(bool normalize) async {
     await _mkPlayer.setAudioNormalization(normalize);
+  }
+
+  Future<void> setEqualizerBands(List<double> bands) async {
+    await _mkPlayer.setEqualizerBands(bands);
   }
 
   Future<bool> openAudioEffectPanel() async {

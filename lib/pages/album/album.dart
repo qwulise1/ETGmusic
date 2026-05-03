@@ -48,6 +48,7 @@ class AlbumPage extends HookConsumerWidget {
         ref.watch(metadataPluginSavedAlbumsProvider.notifier);
     final isSavedAlbum =
         ref.watch(metadataPluginIsSavedAlbumProvider(displayAlbum.id));
+    final isTelegramAlbum = displayAlbum.id.startsWith("telegram:");
 
     return material.RefreshIndicator.adaptive(
       onRefresh: () async {
@@ -82,7 +83,7 @@ class AlbumPage extends HookConsumerWidget {
           shareUrl: displayAlbum.externalUri,
           isLiked: isSavedAlbum.asData?.value ?? false,
           owner: albumArtist,
-          actions: displayAlbum.id.startsWith("telegram:")
+          actions: isTelegramAlbum
               ? [
                   Tooltip(
                     tooltip: TooltipContainer(
@@ -100,9 +101,32 @@ class AlbumPage extends HookConsumerWidget {
                       },
                     ),
                   ),
+                  Tooltip(
+                    tooltip: TooltipContainer(
+                      child: const Text("Удалить альбом"),
+                    ).call,
+                    child: IconButton.outline(
+                      icon: const Icon(SpotubeIcons.trash),
+                      size: ButtonSize.small,
+                      onPressed: () async {
+                        final confirmed = await _confirmDeleteAlbum(context);
+                        if (confirmed != true) return;
+                        await ref
+                            .read(telegramMediaServiceProvider)
+                            .deleteAlbum(displayAlbum.id);
+                        ref.invalidate(metadataPluginSavedAlbumsProvider);
+                        ref.invalidate(
+                          metadataPluginAlbumTracksProvider(displayAlbum.id),
+                        );
+                        if (context.mounted) {
+                          context.router.maybePop();
+                        }
+                      },
+                    ),
+                  ),
                 ]
               : const [],
-          onHeart: isSavedAlbum.asData?.value == null
+          onHeart: isTelegramAlbum || isSavedAlbum.asData?.value == null
               ? null
               : () async {
                   if (isSavedAlbum.asData!.value) {
@@ -216,5 +240,29 @@ class AlbumPage extends HookConsumerWidget {
       nameController.dispose();
       coverController.dispose();
     }
+  }
+
+  Future<bool?> _confirmDeleteAlbum(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Удалить альбом?"),
+          content: const Text(
+            "Треки этого Telegram-альбома будут удалены из локальной библиотеки ETGmusic.",
+          ),
+          actions: [
+            Button.outline(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("Отмена"),
+            ),
+            Button.destructive(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text("Удалить"),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

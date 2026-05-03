@@ -5,7 +5,7 @@ import 'package:etgmusic/services/youtube_engine/newpipe_engine.dart';
 import 'package:etgmusic/services/youtube_engine/youtube_explode_engine.dart';
 import 'package:etgmusic/services/youtube_engine/yt_dlp_engine.dart';
 
-final youtubeEngineProvider = Provider((ref) {
+final youtubeEngineProvider = Provider<YouTubeEngine>((ref) {
   final engineMode = ref.watch(
     userPreferencesProvider.select((value) => value.youtubeClientEngine),
   );

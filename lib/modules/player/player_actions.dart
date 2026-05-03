@@ -21,11 +21,10 @@ import 'package:etgmusic/provider/download_manager_provider.dart';
 import 'package:etgmusic/provider/local_tracks/local_tracks_provider.dart';
 import 'package:etgmusic/provider/metadata_plugin/core/auth.dart';
 import 'package:etgmusic/provider/player_crossfade_provider.dart';
-import 'package:etgmusic/provider/player_volume_control_provider.dart';
+import 'package:etgmusic/provider/player_equalizer_provider.dart';
 import 'package:etgmusic/provider/sleep_timer_provider.dart';
 import 'package:etgmusic/provider/user_preferences/user_preferences_provider.dart';
 import 'package:etgmusic/provider/volume_provider.dart';
-import 'package:etgmusic/services/audio_player/audio_player.dart';
 
 class PlayerActions extends HookConsumerWidget {
   final MainAxisAlignment mainAxisAlignment;
@@ -101,9 +100,6 @@ class _PlayerActionsSheet extends HookConsumerWidget {
     final preferencesNotifier = ref.watch(userPreferencesProvider.notifier);
     final crossfade = ref.watch(playerCrossfadeProvider);
     final crossfadeNotifier = ref.watch(playerCrossfadeProvider.notifier);
-    final showPlayerVolume = ref.watch(playerVolumeControlProvider);
-    final showPlayerVolumeNotifier =
-        ref.watch(playerVolumeControlProvider.notifier);
     final volume = ref.watch(volumeProvider);
     final sleepTimer = ref.watch(sleepTimerProvider);
     final sleepTimerNotifier = ref.watch(sleepTimerProvider.notifier);
@@ -203,7 +199,7 @@ class _PlayerActionsSheet extends HookConsumerWidget {
                         const Gap(6),
                         Expanded(
                           child: Text(
-                            "Сердечко / избранное",
+                            "В избранное",
                             style: theme.typography.normal.copyWith(
                               fontWeight: FontWeight.w700,
                             ),
@@ -214,20 +210,7 @@ class _PlayerActionsSheet extends HookConsumerWidget {
                   ),
                 const Gap(8),
                 const _SectionTitle("Звук"),
-                _ActionTile(
-                  icon: SpotubeIcons.audioQuality,
-                  title: "Эквалайзер",
-                  subtitle: "Открыть системные аудиоэффекты Android",
-                  onPressed: () async {
-                    final opened = await audioPlayer.openAudioEffectPanel();
-                    if (!opened && context.mounted) {
-                      _showPlainToast(
-                        context,
-                        "Системный эквалайзер не найден на этой прошивке",
-                      );
-                    }
-                  },
-                ),
+                const _EqualizerPanel(),
                 _SwitchTile(
                   icon: SpotubeIcons.repeat,
                   title: "Плавный переход",
@@ -241,13 +224,6 @@ class _PlayerActionsSheet extends HookConsumerWidget {
                   subtitle: "Выравнивать громкость треков",
                   value: preferences.normalizeAudio,
                   onChanged: preferencesNotifier.setNormalizeAudio,
-                ),
-                _SwitchTile(
-                  icon: SpotubeIcons.volumeHigh,
-                  title: "Показывать громкость",
-                  subtitle: "Оставляет регулятор в полном и нижнем плеере",
-                  value: showPlayerVolume,
-                  onChanged: showPlayerVolumeNotifier.setVisible,
                 ),
                 Padding(
                   padding: const EdgeInsets.only(left: 4, top: 4, bottom: 10),
@@ -333,6 +309,110 @@ class _ActionTile extends StatelessWidget {
       enabled: enabled,
       onPressed: onPressed,
       child: _TileText(title: title, subtitle: subtitle),
+    );
+  }
+}
+
+class _EqualizerPanel extends HookConsumerWidget {
+  const _EqualizerPanel();
+
+  static const _labels = [
+    "31",
+    "62",
+    "125",
+    "250",
+    "500",
+    "1K",
+    "2K",
+    "4K",
+    "8K",
+    "16K",
+  ];
+
+  @override
+  Widget build(BuildContext context, ref) {
+    final theme = Theme.of(context);
+    final bands = ref.watch(playerEqualizerProvider);
+    final notifier = ref.watch(playerEqualizerProvider.notifier);
+    final hasCustomPreset = bands.any((gain) => gain.abs() >= 0.05);
+
+    return SurfaceCard(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      borderRadius: BorderRadius.circular(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(SpotubeIcons.audioQuality, size: 18),
+              const Gap(8),
+              Expanded(
+                child: Text(
+                  "Эквалайзер",
+                  style: theme.typography.normal.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Button(
+                style: const ButtonStyle.ghost(
+                  size: ButtonSize.small,
+                  density: ButtonDensity.dense,
+                ),
+                enabled: hasCustomPreset,
+                onPressed: () {
+                  notifier.reset();
+                },
+                child: const Text("Сброс"),
+              ),
+            ],
+          ),
+          const Gap(4),
+          Text(
+            "10 полос, -12/+12 дБ. Работает внутри ETGmusic, без внешних эффектов прошивки.",
+            style: theme.typography.xSmall.copyWith(
+              color: theme.colorScheme.mutedForeground,
+            ),
+          ),
+          const Gap(10),
+          for (var i = 0; i < _labels.length; i++)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 34,
+                    child: Text(
+                      _labels[i],
+                      style: theme.typography.xSmall.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.mutedForeground,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Slider(
+                      min: -12,
+                      max: 12,
+                      value: SliderValue.single(bands[i]),
+                      onChanged: (value) {
+                        notifier.setBand(i, value.value);
+                      },
+                    ),
+                  ),
+                  SizedBox(
+                    width: 48,
+                    child: Text(
+                      "${bands[i] >= 0 ? "+" : ""}${bands[i].toStringAsFixed(1)}",
+                      textAlign: TextAlign.right,
+                      style: theme.typography.xSmall,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

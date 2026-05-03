@@ -194,11 +194,17 @@ class MetadataPluginNotifier extends AsyncNotifier<MetadataPluginState> {
       try {
         await addPlugin(pluginConfig);
       } on MetadataPluginException catch (e) {
-        if (e.errorCode == MetadataPluginErrorCode.duplicatePlugin &&
-            await isPluginUpdate(pluginConfig)) {
+        if (e.errorCode == MetadataPluginErrorCode.duplicatePlugin) {
           final oldConfig = pluginState.plugins
               .firstWhereOrNull((p) => p.slug == pluginConfig.slug);
           if (oldConfig == null) continue;
+          final shouldReplace = await isPluginUpdate(pluginConfig) ||
+              plugins.any(
+                (name) =>
+                    pluginConfig.repository?.contains(name) == true ||
+                    oldConfig.repository?.contains(name) == true,
+              );
+          if (!shouldReplace) continue;
           final isDefaultMetadata =
               oldConfig == pluginState.defaultMetadataPluginConfig;
           final isDefaultAudioSource =
@@ -262,7 +268,7 @@ class MetadataPluginNotifier extends AsyncNotifier<MetadataPluginState> {
           plugin.slug == "youtube-audio",
     );
 
-    final metadataPlugin = musicBrainz ?? spotify;
+    final metadataPlugin = spotify ?? musicBrainz;
     if (metadataPlugin != null &&
         latestPluginState.defaultMetadataPluginConfig != metadataPlugin) {
       await setDefaultMetadataPlugin(metadataPlugin);

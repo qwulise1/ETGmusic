@@ -23,6 +23,8 @@ class CustomPlayer extends Player {
   int _androidAudioSessionId = 0;
   String _packageName = "";
   AndroidAudioManager? _androidAudioManager;
+  bool _audioNormalization = false;
+  List<double> _equalizerBands = List<double>.filled(10, 0);
 
   CustomPlayer({super.configuration})
       : _playerStateStream = StreamController.broadcast() {
@@ -146,11 +148,35 @@ class CustomPlayer extends Player {
   }
 
   Future<void> setAudioNormalization(bool normalize) async {
-    if (normalize) {
-      await nativePlayer.setProperty('af', 'dynaudnorm=g=5:f=250:r=0.9:p=0.5');
-    } else {
-      await nativePlayer.setProperty('af', '');
+    _audioNormalization = normalize;
+    await _applyAudioFilters();
+  }
+
+  Future<void> setEqualizerBands(List<double> bands) async {
+    _equalizerBands = List<double>.generate(
+      10,
+      (index) => index < bands.length ? bands[index].clamp(-12, 12) : 0,
+    );
+    await _applyAudioFilters();
+  }
+
+  Future<void> _applyAudioFilters() async {
+    final filters = <String>[];
+
+    if (_audioNormalization) {
+      filters.add('dynaudnorm=g=5:f=250:r=0.9:p=0.5');
     }
+
+    const frequencies = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+    for (var i = 0; i < frequencies.length; i++) {
+      final gain = _equalizerBands.elementAt(i);
+      if (gain.abs() < 0.05) continue;
+      filters.add(
+        'equalizer=f=${frequencies[i]}:t=q:w=1.2:g=${gain.toStringAsFixed(1)}',
+      );
+    }
+
+    await nativePlayer.setProperty('af', filters.join(','));
   }
 
   Future<bool> openAudioEffectPanel() async {
